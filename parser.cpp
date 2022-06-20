@@ -1,0 +1,1149 @@
+#include "stdafx.h"
+
+#include <format>
+#include "../parsertl14/include/parsertl/generator.hpp"
+#include "structs.h"
+
+void process_interface(data_t& data)
+{
+	auto& results = data._results_stack.top();
+	auto& productions = data._productions_stack.top();
+
+	data._interfaces.emplace_back();
+	data._curr_if = &data._interfaces.back().first;
+	data._curr_if->_uuid = std::move(data._curr_uuid);
+	data._curr_if->_level = data._results_stack.size();
+	data._curr_if->_namespace = data._namespace.back();
+	data._curr_if->_name = results.dollar(data_t::_gsm, 1, productions).str();
+	data._curr_if->_help = std::move(data._curr_help);
+}
+
+// IDL reference: https://msdn.microsoft.com/en-us/library/windows/desktop/aa367088(v=vs.85).aspx
+// - This parser only needs to parse what OLE Viewer outputs.
+// https://github.com/microsoft/VCSamples/tree/master/VC2010Samples/MFC/ole/oleview
+void build_parser()
+{
+	parsertl::rules grules;
+	lexertl::rules lrules;
+
+	// Start of new grammar 02/06/2018
+	grules.token("Name Number String Uuid");
+
+	grules.push("file", "attr_list 'library' lib_name '{' lib_stmts '}' ';'");
+	data_t::_actions[grules.push("lib_name", "Name")] = [](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+		std::string ns = results.dollar(data_t::_gsm, 0, productions).str();
+
+		if (data._lib_help.empty())
+			data._lib_help = data._curr_help;
+
+		data._namespace.push_back(ns);
+	};
+	grules.push("lib_stmts", "lib_stmt ';' "
+		"| lib_stmts lib_stmt ';'");
+	grules.push("lib_stmt", "'dispinterface' Name");
+	data_t::_actions[grules.push("lib_stmt", "'importlib' '(' String ')'")] = [](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+		std::string name = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
+		std::string pathname;
+
+		name = name.substr(0, name.rfind('.')) + ".idl";
+		pathname = data._path + name;
+
+		if (!data._files.contains(pathname))
+		{
+			data.parse(pathname);
+
+			if (data._namespace.size() > 1)
+				data._namespace.pop_back();
+		}
+	};
+	grules.push("lib_stmt", "'interface' if_type");
+	data_t::_actions[grules.push("lib_stmt",
+		"attr_list 'coclass' Name '{' interface_list '}'")] = [](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+		std::string name = results.dollar(data_t::_gsm, 2, productions).str();
+
+		data._coclass.insert(std::pair(data._namespace.back(), std::move(name)));
+	};
+	data_t::_actions[grules.push("lib_stmt",
+		"attr_list dispinterface '{' member_list '}'")] = [](data_t& data)
+	{
+		data._curr_if = nullptr;
+	};
+	grules.push("lib_stmt",
+		"attr_list 'interface' 'IDispatch' ':' 'IUnknown' '{' member_list '}' "
+		"| attr_list 'interface' 'IUnknown' '{' member_list '}' "
+		"| attr_list 'interface' Name ':' 'IUnknown' '{' member_list '}'");
+	data_t::_actions[grules.push("lib_stmt",
+		"attr_list interface '{' member_list '}'")] = [](data_t& data)
+	{
+		data._curr_if = nullptr;
+	};
+	grules.push("lib_stmt", "attr_list 'module' Name '{' member_list '}' "
+		"| 'typedef' opt_attr_list type_specifier ");
+
+	data_t::_actions[grules.push("dispinterface", "'dispinterface' Name")] =
+		[](data_t& data)
+	{
+		process_interface(data);
+		data._inherits[data._curr_if->_name] = "IDispatch";
+	};
+
+	data_t::_actions[grules.push("interface", "'interface' Name ':' 'IDispatch'")] =
+		[](data_t& data)
+	{
+		process_interface(data);
+		data._inherits[data._curr_if->_name] = "IDispatch";
+	};
+
+	data_t::_actions[grules.push("interface", "'interface' Name ':' Name")] =
+		[](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+		std::string name = results.dollar(data_t::_gsm, 3, productions).str();
+
+		process_interface(data);
+		data._inherits[data._curr_if->_name] = std::move(name);
+	};
+
+	data_t::_actions[grules.push("type_specifier",
+		"'enum' opt_name '{' enum_items '}' Name")] =
+		[](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+		const std::string name = results.dollar(data._gsm, 5, productions).str();
+
+		if (!data._enums.empty())
+		{
+			auto& pair = data._enum_map[name];
+
+			pair._namespace = data._namespace.back();
+			pair._level = data._namespace.size();
+			pair._help = data._curr_help;
+			std::swap(pair._enums, data._enums);
+		}
+
+		data._enum_set.insert(name);
+		data._curr_help.clear();
+	};
+	grules.push("type_specifier", "struct_union Name '{' struct_members '}' Name");
+	data_t::_actions[grules.push("type_specifier", "type Name")] =
+		[](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+		const std::string lhs = results.dollar(data._gsm, 0, productions).str();
+		const std::size_t pos = lhs.find_first_not_of(" \t\r\n");
+		const std::string rhs = results.dollar(data._gsm, 1, productions).str();
+
+		data._typedefs[rhs] = std::make_tuple(data._namespace.size(),
+			data._namespace.back(),
+			pos == std::string::npos ? lhs : lhs.substr(pos));
+	};
+
+	grules.push("struct_union", "'struct' | 'union'");
+	grules.push("struct_members", "%empty "
+		"| struct_members member");
+	grules.push("member", "opt_attr_list type Name opt_array ';'");
+	grules.push("opt_array", "%empty | '[' Number ']'");
+
+	grules.push("interface_list", "%empty "
+		"| interface_list opt_attr_list 'interface' if_type ';' "
+		"| interface_list opt_attr_list 'dispinterface' Name ';'");
+	grules.push("if_type", "'IDispatch' | 'IUnknown' | Name");
+
+	grules.push("member_list", "%empty");
+	data_t::_actions[grules.push("member_list", "member_list 'properties:'")] =
+		[](data_t& data)
+	{
+		data._properties = true;
+	};
+	data_t::_actions[grules.push("member_list", "member_list 'methods:'")] =
+		[](data_t& data)
+	{
+		data._properties = false;
+	};
+	grules.push("member_list", "member_list function "
+		"| member_list property ");
+	data_t::_actions[grules.push("function",
+		"opt_attr_list type opt_call function_name '(' param_list ')' ';'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if && data._curr_restricted)
+		{
+			data._interfaces.back().second.back()._restricted = data._curr_restricted;
+		}
+
+		data._curr_restricted = false;
+	};
+	data_t::_actions[grules.push("function_name", "Name")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			auto& results = data._results_stack.top();
+			auto& productions = data._productions_stack.top();
+			std::string name = results.dollar(data_t::_gsm, 0, productions).str();
+
+			data._interfaces.back().second.push_back(func_t());
+
+			func_t* func = &data._interfaces.back().second.back();
+
+			func->_name = name;
+			func->_kind = data._curr_func_kind;
+			func->_id = data._curr_id;
+			data._curr_func_kind = func_t::kind::function;
+		}
+	};
+	grules.push("property", "opt_attr_list type opt_call property_name opt_assign_value ';'");
+	data_t::_actions[grules.push("property_name", "Name")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+			const std::string name = results.dollar(data_t::_gsm, 0, productions).str();
+
+			data._interfaces.back().second.push_back(func_t());
+
+			func_t* func = &data._interfaces.back().second.back();
+
+			func->_id = data._curr_id;
+			func->_name = name;
+			func->_kind = func_t::kind::propget;
+			func->_ret_com_type = data._curr_param._com_type;
+			func->_ret_cpp_type = data._curr_param._cpp_type == "BSTR" ?
+				"CString" :
+				data._curr_param._cpp_type;
+
+			if (data._cpp)
+			{
+				func->_ret_vt = data._curr_vt;
+				func->_ret_vts = data._curr_vts;
+			}
+
+			if (!data._curr_param._readonly)
+			{
+				param_t* param = nullptr;
+
+				data._interfaces.back().second.push_back(func_t());
+				func = &data._interfaces.back().second.back();
+				func->_id = data._curr_id;
+				func->_name = name;
+				func->_kind = func_t::kind::propput;
+				func->_params.push_back(param_t());
+				param = &func->_params.back();
+				param->_com_type = data._curr_param._com_type;
+				param->_com_stars = data._curr_param._com_stars;
+				param->_cpp_type = data._curr_param._cpp_type == "BSTR" ?
+					"CString" :
+					data._curr_param._cpp_type;
+				param->_cpp_stars = data._curr_param._cpp_stars;
+
+				if (data._cpp)
+				{
+					param->_vt = data._curr_vt;
+					param->_vts = data._curr_vts;
+				}
+			}
+
+			data._curr_param.clear();
+			data._curr_func_kind = func_t::kind::function;
+		}
+	};
+	grules.push("opt_assign_value", "%empty | '=' value");
+	grules.push("value", "Number | String");
+	grules.push("param_list", "%empty "
+		"| param "
+		"| param_list ',' param");
+	data_t::_actions[grules.push("param", "opt_attr_list type param_name opt_array")] =
+		[](data_t& data)
+	{
+		data._curr_param.clear();
+		data._skip_param = false;
+	};
+	data_t::_actions[grules.push("param_name", "Name")] = [](data_t& data)
+	{
+		if (data._curr_param._kind == param_t::kind::unknown)
+			data._curr_param._kind = param_t::kind::in;
+
+		if (data._skip_param)
+			return;
+
+		if (data._curr_if)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+
+			if (data._curr_param._kind == param_t::kind::retval)
+			{
+				auto& fun = data._interfaces.back().second.back();
+
+				fun._ret_com_type = data._curr_param._com_type;
+				fun._ret_cpp_type = data._curr_param._cpp_type;
+				fun._ret_stars = data._curr_param._com_stars ?
+					data._curr_param._com_stars - 1 : 0;
+
+				if (data._cpp)
+				{
+					fun._ret_vt = data._curr_vt;
+					fun._ret_vts = data._curr_vts;
+
+					if (fun._ret_stars && !fun._ret_vts.empty())
+						fun._ret_vts.insert(4, 1, 'P');
+				}
+			}
+			else
+			{
+				auto& params = data._interfaces.back().second.back()._params;
+				param_t* param = nullptr;
+
+				params.push_back(param_t());
+				param = &params.back();
+				param->_name = results.dollar(data_t::_gsm, 0, productions).str();
+				param->_com_type = data._curr_param._com_type;
+				param->_cpp_type = data._curr_param._cpp_type;
+				param->_kind = data._curr_param._kind;
+				param->_com_stars = data._curr_param._com_stars;
+				param->_cpp_stars = data._curr_param._cpp_stars;
+				param->_default_value = data._curr_param._default_value;
+				param->_optional = data._curr_param._optional;
+
+				if (data._cpp)
+				{
+					param->_vt = data._curr_vt;
+					param->_vts = data._curr_vts;
+
+					if (param->_cpp_stars && !param->_vts.empty() &&
+						!(param->_cpp_stars == 1 && (param->_com_type == "IDispatch" ||
+							param->_cpp_type == "IUnknown")))
+						param->_vts.insert(4, 1, 'P');
+				}
+			}
+		}
+	};
+
+	grules.push("opt_name", "%empty "
+		"| Name");
+	grules.push("enum_items", "enum_item "
+		"| enum_items ',' enum_item");
+	data_t::_actions[grules.push("enum_item", "Name '=' Number")] =
+		[](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+
+		data._enums[results.dollar(data._gsm, 2, productions).str()] =
+			results.dollar(data._gsm, 0, productions).str();
+	};
+	grules.push("name_star_list", "Name opt_stars "
+		"| name_star_list ',' Name opt_stars");
+	grules.push("type", "opt_const raw_type opt_stars");
+	grules.push("opt_const", "%empty | 'const'");
+	data_t::_actions[grules.push("raw_type", "'BSTR'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			if ((data._curr_param._kind == param_t::kind::unknown ||
+				data._curr_param._kind == param_t::kind::in) && data._curr_param._com_stars == 0)
+			{
+				// It's not interesting to record the original type here
+				data._curr_param._com_type = data._curr_param._cpp_type = "LPCTSTR";
+			}
+			else
+			{
+				data._curr_param._com_type = data._curr_param._cpp_type = "BSTR";
+			}
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_BSTR";
+				data._curr_vts = "VTS_BSTR";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'CURRENCY'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "CURRENCY";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_CY";
+				data._curr_vts = "VTS_CY";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'DATE'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "DATE";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_DATE";
+				data._curr_vts = "VTS_DATE";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'double'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "double";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_R8";
+				data._curr_vts = "VTS_R8";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'IDispatch'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "IDispatch";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_DISPATCH";
+				data._curr_vts = "VTS_DISPATCH";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'IUnknown'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "IUnknown";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_UNKNOWN";
+				data._curr_vts = "VTS_UNKNOWN";
+			}
+		}
+	};
+	grules.push("raw_type", "int");
+	data_t::_actions[grules.push("raw_type", "'int64'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = "int64";
+			data._curr_param._cpp_type = "int64_t";
+			data._seen_i64 = true;
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I8";
+				data._curr_vts = "VTS_I8";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "Name")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			auto& results = data._results_stack.top();
+			auto& productions = data._productions_stack.top();
+
+			data._curr_param._com_type =
+				results.dollar(data_t::_gsm, 0, productions).str();
+
+			if (data._curr_param._com_type == "OLE_CANCELBOOL")
+			{
+				data._curr_param._cpp_type = "OLE_CANCELBOOL";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_BOOL";
+					data._curr_vts = "VTS_BOOL";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_COLOR")
+			{
+				data._curr_param._cpp_type = "OLE_COLOR";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_COLOR";
+					data._curr_vts = "VTS_COLOR";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_ENABLEDEFAULTBOOL")
+			{
+				data._curr_param._cpp_type = "OLE_ENABLEDEFAULTBOOL";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_BOOL";
+					data._curr_vts = "VTS_BOOL";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_HANDLE")
+			{
+				data._curr_param._cpp_type = "OLE_HANDLE";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_HANDLE";
+					data._curr_vts = "VTS_HANDLE";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_OPTEXCLUSIVE")
+			{
+				data._curr_param._cpp_type = "OLE_OPTEXCLUSIVE";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_OPTEXCLUSIVE";
+					data._curr_vts = "VTS_OPTEXCLUSIVE";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XPOS_CONTAINER")
+			{
+				data._curr_param._cpp_type = "OLE_XPOS_CONTAINER";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_R4";
+					data._curr_vts = "VTS_R4";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XPOS_HIMETRIC")
+			{
+				data._curr_param._cpp_type = "OLE_XPOS_HIMETRIC";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_XPOS_HIMETRIC";
+					data._curr_vts = "VTS_XPOS_HIMETRIC";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XPOS_PIXELS")
+			{
+				data._curr_param._cpp_type = "OLE_XPOS_PIXELS";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_XPOS_PIXELS";
+					data._curr_vts = "VTS_XPOS_PIXELS";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XSIZE_CONTAINER")
+			{
+				data._curr_param._cpp_type = "OLE_XSIZE_CONTAINER";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_R4";
+					data._curr_vts = "VTS_R4";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XSIZE_HIMETRIC")
+			{
+				data._curr_param._cpp_type = "OLE_XSIZE_HIMETRIC";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_XSIZE_HIMETRIC";
+					data._curr_vts = "VTS_XSIZE_HIMETRIC";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_XSIZE_PIXELS")
+			{
+				data._curr_param._cpp_type = "OLE_XSIZE_PIXELS";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_XSIZE_PIXELS";
+					data._curr_vts = "VTS_XSIZE_PIXELS";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YPOS_CONTAINER")
+			{
+				data._curr_param._cpp_type = "OLE_YPOS_CONTAINER";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_R4";
+					data._curr_vts = "VTS_R4";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YPOS_HIMETRIC")
+			{
+				data._curr_param._cpp_type = "OLE_YPOS_HIMETRIC";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_YPOS_HIMETRIC";
+					data._curr_vts = "VTS_YPOS_HIMETRIC";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YPOS_PIXELS")
+			{
+				data._curr_param._cpp_type = "OLE_YPOS_PIXELS";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_YPOS_PIXELS";
+					data._curr_vts = "VTS_YPOS_PIXELS";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YSIZE_CONTAINER")
+			{
+				data._curr_param._cpp_type = "OLE_YSIZE_CONTAINER";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_R4";
+					data._curr_vts = "VTS_R4";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YSIZE_HIMETRIC")
+			{
+				data._curr_param._cpp_type = "OLE_YSIZE_HIMETRIC";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_YSIZE_HIMETRIC";
+					data._curr_vts = "VTS_YSIZE_HIMETRIC";
+				}
+			}
+			else if (data._curr_param._com_type == "OLE_YSIZE_PIXELS")
+			{
+				data._curr_param._cpp_type = "OLE_YSIZE_PIXELS";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_YSIZE_PIXELS";
+					data._curr_vts = "VTS_YSIZE_PIXELS";
+				}
+			}
+			else
+			{
+				data._curr_param._cpp_type.clear();
+				data._curr_vt.clear();
+				data._curr_vts.clear();
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'SAFEARRAY' '(' type ')'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+
+			data._curr_param._com_type.assign(results.dollar(data_t::_gsm, 0, productions).first,
+				results.dollar(data_t::_gsm, 3, productions).second);
+			data._curr_param._cpp_type = "VARIANT";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_VARIANT";
+				data._curr_vts = "VTS_VARIANT";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'SCODE'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "SCODE";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_ERROR";
+				data._curr_vts = "VTS_SCODE";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'single'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			// It's not interesting to record the original type here
+			data._curr_param._com_type = data._curr_param._cpp_type = "float";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_R4";
+				data._curr_vts = "VTS_R4";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'uint64'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = "uint64";
+			data._curr_param._cpp_type = "uint64_t";
+			data._seen_i64 = true;
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_UI8";
+				data._curr_vts = "VTS_UI8";
+			}
+		}
+	};
+	grules.push("raw_type", "unsigned");
+	data_t::_actions[grules.push("raw_type", "'VARIANT'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "VARIANT";
+
+			if (!data._curr_param._default_value.empty())
+			{
+				data._curr_param._default_value =
+					std::format("COleVariant(long({}))", data._curr_param._default_value);
+			}
+			else if (data._curr_param._optional)
+				data._curr_param._default_value = "COleVariant(DISP_E_PARAMNOTFOUND, VT_ERROR)";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_VARIANT";
+				data._curr_vts = "VTS_VARIANT";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'VARIANT_BOOL'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			// It's not interesting to record the original type here
+			data._curr_param._com_type = data._curr_param._cpp_type = "BOOL";
+
+			if (data._curr_param._default_value == "-1")
+				data._curr_param._default_value = "TRUE";
+			else if (data._curr_param._default_value == "0")
+				data._curr_param._default_value = "FALSE";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_BOOL";
+				data._curr_vts = "VTS_BOOL";
+			}
+		}
+	};
+	data_t::_actions[grules.push("raw_type", "'void'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = "void";
+				
+			if (data._curr_param._kind == param_t::kind::retval)
+			{
+				data._curr_param._cpp_type = "void";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_EMPTY";
+					data._curr_vts.clear();
+				}
+			}
+			else
+			{
+				data._curr_param._cpp_type = "VARIANT";
+
+				if (data._cpp)
+				{
+					data._curr_vt = "VT_VARIANT";
+					data._curr_vts = "VTS_VARIANT";
+				}
+			}
+		}
+	};
+	data_t::_actions[grules.push("int", "'char'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "char";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I1";
+				data._curr_vts = "VTS_I1";
+			}
+		}
+	};
+	data_t::_actions[grules.push("int", "'int'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "int";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I4";
+				data._curr_vts = "VTS_I4";
+			}
+		}
+	};
+	data_t::_actions[grules.push("int", "'long'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "long";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I4";
+				data._curr_vts = "VTS_I4";
+			}
+		}
+	};
+	data_t::_actions[grules.push("int", "'short'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "short";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I2";
+				data._curr_vts = "VTS_I2";
+			}
+		}
+	};
+	data_t::_actions[grules.push("int", "'wchar_t'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._com_type = data._curr_param._cpp_type = "wchar_t";
+
+			if (data._cpp)
+			{
+				data._curr_vt = "VT_I2";
+				data._curr_vts = "VTS_I2";
+			}
+		}
+	};
+	data_t::_actions[grules.push("unsigned", "'unsigned' int")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			data._curr_param._cpp_type.insert(0, "unsigned ");
+			data._curr_param._com_type = data._curr_param._com_type;
+
+			if (data._cpp)
+			{
+				data._curr_vt.insert(3, 1, 'U');
+				data._curr_vts.insert(4, 1, 'U');
+			}
+		}
+	};
+	grules.push("opt_stars", "%empty");
+	data_t::_actions[grules.push("opt_stars", "opt_stars '*'")] =
+		[](data_t& data)
+	{
+		++data._curr_param._com_stars;
+
+		if (!(data._curr_param._cpp_type == "VARIANT" &&
+			data._curr_param._com_type != data._curr_param._cpp_type))
+		{
+			++data._curr_param._cpp_stars;
+		}
+	};
+
+	grules.push("opt_call", "%empty "
+		"| '_stdcall' "
+		"| '_cdecl' "
+		"| '_pascal' "
+		"| '_macpascal' "
+		"| '_mpwcdecl' "
+		"| '_mpwpascal'");
+
+	grules.push("attr_list", "'[' attr_list ']'");
+	grules.push("opt_attr_list", "%empty "
+		"| '[' attr_list ']'");
+	grules.push("attr_list", "attr "
+		"| attr_list opt_comma attr");
+	grules.push("opt_comma", "%empty | ','");
+	// I have lumped all attributes together as it was unclear which
+	// context all attributes occurred in from the MS documentation.
+	grules.push("attr", "'appobject' "
+		"| 'bindable' "
+		"| 'control' "
+		// String could be another data type
+		"| 'custom' '(' '{' uuid '}' ',' String ')' "
+		"| 'default' "
+		"| 'defaultbind'");
+	data_t::_actions[grules.push("attr", "'defaultvalue' '(' number_string ')'")] =
+		[](data_t& data)
+	{
+		if (data._curr_if)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& production = data._productions_stack.top();
+
+			data._curr_param._default_value = results.dollar(data._gsm, 2, production).str();
+		}
+	};
+	grules.push("attr", "'displaybind' "
+		"| 'dllname' '(' String ')' "
+		"| 'dual' "
+		"| 'entry' '(' number_string ')' "
+		"| 'helpcontext' '(' Number ')' "
+		"| 'helpfile' '(' String ')'");
+	data_t::_actions[grules.push("attr", "'helpstring' '(' String ')'")] = [](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+
+		data._curr_help = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
+	};
+	data_t::_actions[grules.push("attr", "'hidden'")] =
+		[](data_t& data)
+	{
+		data._curr_hidden = true;
+	};
+	data_t::_actions[grules.push("attr", "'id' '(' Number ')'")] =
+		[](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+		std::stringstream ss;
+
+		ss << std::hex << results.dollar(data._gsm, 2, productions).str();
+		ss >> data._curr_id;
+	};
+	grules.push("attr", "'immediatebind'");
+	data_t::_actions[grules.push("attr", "'in' ")] = [](data_t& data)
+	{
+		if (data._curr_param._kind == param_t::kind::out)
+			data._curr_param._kind = param_t::kind::in_out;
+		else
+			data._curr_param._kind = param_t::kind::in;
+	};
+	data_t::_actions[grules.push("attr", "'lcid'")] = [](data_t& data)
+	{
+		// InvokeHelper() does not support LCID!
+		data._skip_param = true;
+	};
+	grules.push("attr", "'lcid' '(' Number ')' "
+		"| 'licensed' "
+		"| 'noncreatable' "
+		"| 'nonextensible' "
+		"| 'notify' "
+		"| 'odl' "
+		// https://msdn.microsoft.com/en-us/library/windows/desktop/aa367129(v=vs.85).aspx
+		"| 'oleautomation'");
+	data_t::_actions[grules.push("attr", "'optional'")] = [](data_t& data)
+	{
+		data._curr_param._optional = true;
+	};
+	data_t::_actions[grules.push("attr", "'out'")] = [](data_t& data)
+	{
+		if (data._curr_param._kind == param_t::kind::in)
+			data._curr_param._kind = param_t::kind::in_out;
+		else
+			data._curr_param._kind = param_t::kind::out;
+	};
+	data_t::_actions[grules.push("attr", "'propget'")] = [](data_t& data)
+	{
+		data._curr_func_kind = func_t::kind::propget;
+	};
+	data_t::_actions[grules.push("attr", "'propput'")] = [](data_t& data)
+	{
+		data._curr_func_kind = func_t::kind::propput;
+	};
+	data_t::_actions[grules.push("attr", "'propputref'")] = [](data_t& data)
+	{
+		data._curr_func_kind = func_t::kind::propputref;
+	};
+	grules.push("attr", "'public' "
+		"| 'range' '(' number_name ',' number_name ')'");
+	data_t::_actions[grules.push("attr", "'readonly'")] = [](data_t& data)
+	{
+		data._curr_param._readonly = true;
+	};
+	grules.push("attr", "'requestedit'");
+	data_t::_actions[grules.push("attr", "'restricted'")] = [](data_t& data)
+	{
+		data._curr_restricted = true;
+	};
+	data_t::_actions[grules.push("attr", "'retval'")] = [](data_t& data)
+	{
+		data._curr_param._kind = param_t::kind::retval;
+	};
+	grules.push("attr", "'source'");
+	data_t::_actions[grules.push("attr", "'uuid' '(' uuid ')'")] =
+		[](data_t& data)
+	{
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
+
+		data._curr_uuid = results.dollar(data._gsm, 2, productions).str();
+	};
+	grules.push("attr", "'vararg'"
+		"| 'version' '(' Number ')'");
+
+	grules.push("string_list", "String "
+		"| string_list String");
+
+	grules.push("number_string", "Number | String");
+	grules.push("number_name", "Number | Name");
+	data_t::_actions[grules.push("uuid", "Uuid")] = [](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+
+		data._curr_uuid = results.dollar(data_t::_gsm, 0, productions).str();
+	};
+	data_t::_actions[grules.push("uuid", "String")] = [](data_t& data)
+	{
+		auto& results = data._results_stack.top();
+		auto& productions = data._productions_stack.top();
+
+		data._curr_uuid = results.dollar(data_t::_gsm, 0, productions).substr(1, 1);
+	};
+	parsertl::generator::build(grules, data_t::_gsm);
+
+	// All keywords from Microsoft site:
+	lrules.push_state("ATTRIBUTES");
+
+	// Attributes:
+	lrules.push("INITIAL", "\\[", grules.token_id("'['"), "ATTRIBUTES");
+
+	// Determined by running strings.exe on IViewer.dll
+	lrules.push("ATTRIBUTES", "appobject", grules.token_id("'appobject'"), ".");
+	lrules.push("ATTRIBUTES", "bindable", grules.token_id("'bindable'"), ".");
+	lrules.push("ATTRIBUTES", "control", grules.token_id("'control'"), ".");
+	lrules.push("ATTRIBUTES", "custom", grules.token_id("'custom'"), ".");
+	lrules.push("ATTRIBUTES", "default", grules.token_id("'default'"), ".");
+	lrules.push("ATTRIBUTES", "defaultbind", grules.token_id("'defaultbind'"), ".");
+	lrules.push("ATTRIBUTES", "defaultvalue", grules.token_id("'defaultvalue'"), ".");
+	lrules.push("ATTRIBUTES", "displaybind", grules.token_id("'displaybind'"), ".");
+	lrules.push("ATTRIBUTES", "dllname", grules.token_id("'dllname'"), ".");
+	lrules.push("ATTRIBUTES", "dual", grules.token_id("'dual'"), ".");
+	lrules.push("ATTRIBUTES", "entry", grules.token_id("'entry'"), ".");
+	lrules.push("ATTRIBUTES", "helpcontext", grules.token_id("'helpcontext'"), ".");
+	lrules.push("ATTRIBUTES", "helpfile", grules.token_id("'helpfile'"), ".");
+	lrules.push("ATTRIBUTES", "helpstring", grules.token_id("'helpstring'"), ".");
+	lrules.push("ATTRIBUTES", "hidden", grules.token_id("'hidden'"), ".");
+	lrules.push("ATTRIBUTES", "id", grules.token_id("'id'"), ".");
+	lrules.push("ATTRIBUTES", "immediatebind", grules.token_id("'immediatebind'"), ".");
+	lrules.push("ATTRIBUTES", "in", grules.token_id("'in'"), ".");
+	lrules.push("ATTRIBUTES", "lcid", grules.token_id("'lcid'"), ".");
+	lrules.push("ATTRIBUTES", "licensed", grules.token_id("'licensed'"), ".");
+	lrules.push("ATTRIBUTES", "noncreatable", grules.token_id("'noncreatable'"), ".");
+	lrules.push("ATTRIBUTES", "nonextensible", grules.token_id("'nonextensible'"), ".");
+	lrules.push("ATTRIBUTES", "notify", grules.token_id("'notify'"), ".");
+	lrules.push("ATTRIBUTES", "odl", grules.token_id("'odl'"), ".");
+	lrules.push("ATTRIBUTES", "oleautomation", grules.token_id("'oleautomation'"), ".");
+	lrules.push("ATTRIBUTES", "optional", grules.token_id("'optional'"), ".");
+	lrules.push("ATTRIBUTES", "out", grules.token_id("'out'"), ".");
+	lrules.push("ATTRIBUTES", "propget", grules.token_id("'propget'"), ".");
+	lrules.push("ATTRIBUTES", "propput", grules.token_id("'propput'"), ".");
+	lrules.push("ATTRIBUTES", "propputref", grules.token_id("'propputref'"), ".");
+	lrules.push("ATTRIBUTES", "public", grules.token_id("'public'"), ".");
+	lrules.push("ATTRIBUTES", "range", grules.token_id("'range'"), ".");
+	lrules.push("ATTRIBUTES", "readonly", grules.token_id("'readonly'"), ".");
+	lrules.push("ATTRIBUTES", "requestedit", grules.token_id("'requestedit'"), ".");
+	lrules.push("ATTRIBUTES", "restricted", grules.token_id("'restricted'"), ".");
+	lrules.push("ATTRIBUTES", "retval", grules.token_id("'retval'"), ".");
+	lrules.push("ATTRIBUTES", "source", grules.token_id("'source'"), ".");
+	lrules.push("ATTRIBUTES", "uuid", grules.token_id("'uuid'"), ".");
+	lrules.push("ATTRIBUTES", "vararg", grules.token_id("'vararg'"), ".");
+	lrules.push("ATTRIBUTES", "version", grules.token_id("'version'"), ".");
+	lrules.push("ATTRIBUTES", "\\]", grules.token_id("']'"), "INITIAL");
+
+	// Keywords:
+	// Determined by running strings.exe on IViewer.dll
+	lrules.push("BSTR", grules.token_id("'BSTR'"));
+	lrules.push("DATE", grules.token_id("'DATE'"));
+	lrules.push("CURRENCY", grules.token_id("'CURRENCY'"));
+	lrules.push("IDispatch", grules.token_id("'IDispatch'"));
+	lrules.push("IUnknown", grules.token_id("'IUnknown'"));
+	lrules.push("SAFEARRAY", grules.token_id("'SAFEARRAY'"));
+	lrules.push("SCODE", grules.token_id("'SCODE'"));
+	lrules.push("VARIANT", grules.token_id("'VARIANT'"));
+	lrules.push("VARIANT_BOOL", grules.token_id("'VARIANT_BOOL'"));
+	lrules.push("_cdecl", grules.token_id("'_cdecl'"));
+	lrules.push("_macpascal", grules.token_id("'_macpascal'"));
+	lrules.push("_mpwcdecl", grules.token_id("'_mpwcdecl'"));
+	lrules.push("_mpwpascal", grules.token_id("'_mpwpascal'"));
+	lrules.push("_pascal", grules.token_id("'_pascal'"));
+	lrules.push("_stdcall", grules.token_id("'_stdcall'"));
+	lrules.push("char", grules.token_id("'char'"));
+	lrules.push("coclass", grules.token_id("'coclass'"));
+	lrules.push("const", grules.token_id("'const'"));
+	lrules.push("dispinterface", grules.token_id("'dispinterface'"));
+	lrules.push("double", grules.token_id("'double'"));
+	lrules.push("enum", grules.token_id("'enum'"));
+	lrules.push("importlib", grules.token_id("'importlib'"));
+	lrules.push("int", grules.token_id("'int'"));
+	lrules.push("int64", grules.token_id("'int64'"));
+	lrules.push("interface", grules.token_id("'interface'"));
+	lrules.push("library", grules.token_id("'library'"));
+	lrules.push("long", grules.token_id("'long'"));
+	lrules.push("methods:", grules.token_id("'methods:'"));
+	lrules.push("module", grules.token_id("'module'"));
+	lrules.push("properties:", grules.token_id("'properties:'"));
+	lrules.push("short", grules.token_id("'short'"));
+	lrules.push("single", grules.token_id("'single'"));
+	lrules.push("struct", grules.token_id("'struct'"));
+	lrules.push("typedef", grules.token_id("'typedef'"));
+	lrules.push("uint64", grules.token_id("'uint64'"));
+	lrules.push("union", grules.token_id("'union'"));
+	lrules.push("unsigned", grules.token_id("'unsigned'"));
+	lrules.push("void", grules.token_id("'void'"));
+	lrules.push("wchar_t", grules.token_id("'wchar_t'"));
+
+	lrules.push("*", "[(]", grules.token_id("'('"), ".");
+	lrules.push("*", "[)]", grules.token_id("')'"), ".");
+	lrules.push("*", "[*]", grules.token_id("'*'"), ".");
+	lrules.push("*", ",", grules.token_id("','"), ".");
+	lrules.push(":", grules.token_id("':'"));
+	lrules.push(";", grules.token_id("';'"));
+	lrules.push("=", grules.token_id("'='"));
+	lrules.push("*", "[{]", grules.token_id("'{'"), ".");
+	lrules.push("*", "[}]", grules.token_id("'}'"), ".");
+	lrules.push("[A-Z_a-z][0-9A-Z_a-z]*", grules.token_id("Name"));
+	lrules.push("*", "-?\\d+([.]\\d+)?|0x[0-9A-Fa-f]{8}", grules.token_id("Number"), ".");
+	lrules.push("*", R"(["]([^"\\]|\\.)*["])", grules.token_id("String"), ".");
+	lrules.push("*", "[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}",
+		grules.token_id("Uuid"), ".");
+	lrules.push("[/][/].*", lrules.skip());
+	lrules.push("*", "\\s+", lrules.skip(), ".");
+
+	lexertl::generator::build(lrules, data_t::_lsm);
+}
