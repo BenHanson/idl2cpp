@@ -11,11 +11,13 @@ void process_interface(data_t& data)
 
 	data._interfaces.emplace_back();
 	data._curr_if = &data._interfaces.back().first;
-	data._curr_if->_uuid = std::move(data._curr_uuid);
+	data._curr_if->_uuid = std::move(data._curr_attrs._uuid);
 	data._curr_if->_level = data._results_stack.size();
 	data._curr_if->_namespace = data._namespace.back();
 	data._curr_if->_name = results.dollar(data_t::_gsm, 1, productions).str();
-	data._curr_if->_help = std::move(data._curr_help);
+	data._curr_if->_hidden = data._curr_attrs._hidden;
+	data._curr_if->_help = std::move(data._curr_attrs._helpstring);
+	data._curr_attrs.clear();
 }
 
 // IDL reference: https://msdn.microsoft.com/en-us/library/windows/desktop/aa367088(v=vs.85).aspx
@@ -29,6 +31,7 @@ void build_parser()
 	// Start of new grammar 02/06/2018
 	grules.token("Name Number String Uuid");
 
+	// attr_list cleared in lib_name
 	grules.push("file", "attr_list 'library' lib_name '{' lib_stmts '}' ';'");
 	data_t::_actions[grules.push("lib_name", "Name")] = [](data_t& data)
 	{
@@ -37,8 +40,9 @@ void build_parser()
 		std::string ns = results.dollar(data_t::_gsm, 0, productions).str();
 
 		if (data._lib_help.empty())
-			data._lib_help = data._curr_help;
+			data._lib_help = data._curr_attrs._helpstring;
 
+		data._curr_attrs.clear();
 		data._namespace.push_back(ns);
 	};
 	grules.push("lib_stmts", "lib_stmt ';' "
@@ -63,32 +67,52 @@ void build_parser()
 		}
 	};
 	grules.push("lib_stmt", "'interface' if_type");
+	// attr_list cleared in coclass_name
 	data_t::_actions[grules.push("lib_stmt",
-		"attr_list 'coclass' Name '{' interface_list '}'")] = [](data_t& data)
+		"attr_list 'coclass' coclass_name '{' interface_list '}'")] = [](data_t& data)
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 		std::string name = results.dollar(data_t::_gsm, 2, productions).str();
 
 		data._coclass.insert(std::pair(data._namespace.back(), std::move(name)));
+		data._curr_attrs.clear();
 	};
+	data_t::_actions[grules.push("coclass_name", "Name")] = [](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
+	// attr_list cleared in dispinterface
 	data_t::_actions[grules.push("lib_stmt",
 		"attr_list dispinterface '{' member_list '}'")] = [](data_t& data)
 	{
 		data._curr_if = nullptr;
 	};
+	// attr_list cleared in unknown
 	grules.push("lib_stmt",
-		"attr_list 'interface' 'IDispatch' ':' 'IUnknown' '{' member_list '}' "
-		"| attr_list 'interface' 'IUnknown' '{' member_list '}' "
-		"| attr_list 'interface' Name ':' 'IUnknown' '{' member_list '}'");
+		"attr_list 'interface' 'IDispatch' ':' unknown '{' member_list '}' "
+		"| attr_list 'interface' unknown '{' member_list '}' "
+		"| attr_list 'interface' Name ':' unknown '{' member_list '}'");
+	data_t::_actions[grules.push("unknown", "'IUnknown'")] = [](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
 	data_t::_actions[grules.push("lib_stmt",
 		"attr_list interface '{' member_list '}'")] = [](data_t& data)
 	{
+		data._curr_attrs.clear();
 		data._curr_if = nullptr;
 	};
-	grules.push("lib_stmt", "attr_list 'module' Name '{' member_list '}' "
-		"| 'typedef' opt_attr_list type_specifier ");
-
+	data_t::_actions[grules.push("lib_stmt", "attr_list 'module' Name '{' member_list '}'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
+	data_t::_actions[grules.push("lib_stmt", "'typedef' opt_attr_list type_specifier ")] =
+		[](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
 	data_t::_actions[grules.push("dispinterface", "'dispinterface' Name")] =
 		[](data_t& data)
 	{
@@ -128,12 +152,12 @@ void build_parser()
 
 			pair._namespace = data._namespace.back();
 			pair._level = data._namespace.size();
-			pair._help = data._curr_help;
+			pair._help = data._curr_attrs._helpstring;
 			std::swap(pair._enums, data._enums);
 		}
 
 		data._enum_set.insert(name);
-		data._curr_help.clear();
+		data._curr_attrs.clear();
 	};
 	grules.push("type_specifier", "struct_union Name '{' struct_members '}' Name");
 	data_t::_actions[grules.push("type_specifier", "type Name")] =
@@ -153,12 +177,26 @@ void build_parser()
 	grules.push("struct_union", "'struct' | 'union'");
 	grules.push("struct_members", "%empty "
 		"| struct_members member");
-	grules.push("member", "opt_attr_list type Name opt_array ';'");
+	data_t::_actions[grules.push("member", "opt_attr_list type Name opt_array ';'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
 	grules.push("opt_array", "%empty | '[' Number ']'");
 
-	grules.push("interface_list", "%empty "
-		"| interface_list opt_attr_list 'interface' if_type ';' "
-		"| interface_list opt_attr_list 'dispinterface' Name ';'");
+	grules.push("interface_list", "%empty");
+	data_t::_actions[grules.push("interface_list",
+		"interface_list opt_attr_list 'interface' if_type ';'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
+	data_t::_actions[grules.push("interface_list",
+		"interface_list opt_attr_list 'dispinterface' Name ';'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs.clear();
+	};
 	grules.push("if_type", "'IDispatch' | 'IUnknown' | Name");
 
 	grules.push("member_list", "%empty");
@@ -178,12 +216,13 @@ void build_parser()
 		"opt_attr_list type opt_call function_name '(' param_list ')' ';'")] =
 		[](data_t& data)
 	{
-		if (data._curr_if && data._curr_restricted)
+		if (data._curr_if && data._curr_attrs._restricted)
 		{
-			data._interfaces.back().second.back()._restricted = data._curr_restricted;
+			data._interfaces.back().second.back()._restricted =
+				data._curr_attrs._restricted;
 		}
 
-		data._curr_restricted = false;
+		data._curr_attrs.clear();
 	};
 	data_t::_actions[grules.push("function_name", "Name")] =
 		[](data_t& data)
@@ -199,10 +238,32 @@ void build_parser()
 			func_t* func = &data._interfaces.back().second.back();
 
 			func->_name = name;
-			func->_kind = data._curr_func_kind;
-			func->_id = data._curr_id;
-			data._curr_func_kind = func_t::kind::function;
+			func->_kind = data._curr_attrs._propget ?
+				func_t::kind::propget :
+				data._curr_attrs._propput ?
+				func_t::kind::propput :
+				data._curr_attrs._propputref ?
+				func_t::kind::propputref :
+				func_t::kind::function;
+			func->_hidden = data._curr_attrs._hidden;
+			func->_restricted = data._curr_attrs._restricted;
+
+			if (func->_kind != func_t::kind::propput &&
+				func->_kind != func_t::kind::propputref &&
+				data._curr_param._com_type != "HRESULT")
+			{
+				func->_ret_com_type = data._curr_param._com_type;
+				func->_ret_stars = data._curr_param._com_stars;
+				func->_ret_cpp_type = data._curr_param._cpp_type == "LPCTSTR" ?
+					"CString" :
+					data._curr_param._cpp_type;
+			}
+
+			func->_id = data._curr_attrs._id;
 		}
+
+		data._curr_attrs.clear();
+		data._curr_param.clear();
 	};
 	grules.push("property", "opt_attr_list type opt_call property_name opt_assign_value ';'");
 	data_t::_actions[grules.push("property_name", "Name")] =
@@ -218,13 +279,15 @@ void build_parser()
 
 			func_t* func = &data._interfaces.back().second.back();
 
-			func->_id = data._curr_id;
+			func->_id = data._curr_attrs._id;
 			func->_name = name;
 			func->_kind = func_t::kind::propget;
 			func->_ret_com_type = data._curr_param._com_type;
 			func->_ret_cpp_type = data._curr_param._cpp_type == "BSTR" ?
 				"CString" :
 				data._curr_param._cpp_type;
+			func->_hidden = data._curr_attrs._hidden;
+			func->_restricted = data._curr_attrs._restricted;
 
 			if (data._cpp)
 			{
@@ -238,7 +301,7 @@ void build_parser()
 
 				data._interfaces.back().second.push_back(func_t());
 				func = &data._interfaces.back().second.back();
-				func->_id = data._curr_id;
+				func->_id = data._curr_attrs._id;
 				func->_name = name;
 				func->_kind = func_t::kind::propput;
 				func->_params.push_back(param_t());
@@ -256,10 +319,10 @@ void build_parser()
 					param->_vts = data._curr_vts;
 				}
 			}
-
-			data._curr_param.clear();
-			data._curr_func_kind = func_t::kind::function;
 		}
+
+		data._curr_attrs.clear();
+		data._curr_param.clear();
 	};
 	grules.push("opt_assign_value", "%empty | '=' value");
 	grules.push("value", "Number | String");
@@ -269,15 +332,15 @@ void build_parser()
 	data_t::_actions[grules.push("param", "opt_attr_list type param_name opt_array")] =
 		[](data_t& data)
 	{
+		data._curr_attrs.clear();
 		data._curr_param.clear();
-		data._skip_param = false;
 	};
 	data_t::_actions[grules.push("param_name", "Name")] = [](data_t& data)
 	{
 		if (data._curr_param._kind == param_t::kind::unknown)
 			data._curr_param._kind = param_t::kind::in;
 
-		if (data._skip_param)
+		if (data._curr_attrs._lcid)
 			return;
 
 		if (data._curr_if)
@@ -763,7 +826,8 @@ void build_parser()
 		{
 			data._curr_param._com_type = "void";
 				
-			if (data._curr_param._kind == param_t::kind::retval)
+			if (data._curr_param._kind == param_t::kind::unknown ||
+				data._curr_param._kind == param_t::kind::retval)
 			{
 				data._curr_param._cpp_type = "void";
 
@@ -928,12 +992,12 @@ void build_parser()
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_help = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
+		data._curr_attrs._helpstring = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
 	};
 	data_t::_actions[grules.push("attr", "'hidden'")] =
 		[](data_t& data)
 	{
-		data._curr_hidden = true;
+		data._curr_attrs._hidden = true;
 	};
 	data_t::_actions[grules.push("attr", "'id' '(' Number ')'")] =
 		[](data_t& data)
@@ -943,7 +1007,7 @@ void build_parser()
 		std::stringstream ss;
 
 		ss << std::hex << results.dollar(data._gsm, 2, productions).str();
-		ss >> data._curr_id;
+		ss >> data._curr_attrs._id;
 	};
 	grules.push("attr", "'immediatebind'");
 	data_t::_actions[grules.push("attr", "'in' ")] = [](data_t& data)
@@ -956,7 +1020,7 @@ void build_parser()
 	data_t::_actions[grules.push("attr", "'lcid'")] = [](data_t& data)
 	{
 		// InvokeHelper() does not support LCID!
-		data._skip_param = true;
+		data._curr_attrs._lcid = true;
 	};
 	grules.push("attr", "'lcid' '(' Number ')' "
 		"| 'licensed' "
@@ -979,15 +1043,15 @@ void build_parser()
 	};
 	data_t::_actions[grules.push("attr", "'propget'")] = [](data_t& data)
 	{
-		data._curr_func_kind = func_t::kind::propget;
+		data._curr_attrs._propget = true;
 	};
 	data_t::_actions[grules.push("attr", "'propput'")] = [](data_t& data)
 	{
-		data._curr_func_kind = func_t::kind::propput;
+		data._curr_attrs._propput = true;
 	};
 	data_t::_actions[grules.push("attr", "'propputref'")] = [](data_t& data)
 	{
-		data._curr_func_kind = func_t::kind::propputref;
+		data._curr_attrs._propputref = true;
 	};
 	grules.push("attr", "'public' "
 		"| 'range' '(' number_name ',' number_name ')'");
@@ -998,7 +1062,7 @@ void build_parser()
 	grules.push("attr", "'requestedit'");
 	data_t::_actions[grules.push("attr", "'restricted'")] = [](data_t& data)
 	{
-		data._curr_restricted = true;
+		data._curr_attrs._restricted = true;
 	};
 	data_t::_actions[grules.push("attr", "'retval'")] = [](data_t& data)
 	{
@@ -1011,7 +1075,7 @@ void build_parser()
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
 
-		data._curr_uuid = results.dollar(data._gsm, 2, productions).str();
+		data._curr_attrs._uuid = results.dollar(data._gsm, 2, productions).str();
 	};
 	grules.push("attr", "'vararg'"
 		"| 'version' '(' Number ')'");
@@ -1026,14 +1090,14 @@ void build_parser()
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_uuid = results.dollar(data_t::_gsm, 0, productions).str();
+		data._curr_attrs._uuid = results.dollar(data_t::_gsm, 0, productions).str();
 	};
 	data_t::_actions[grules.push("uuid", "String")] = [](data_t& data)
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_uuid = results.dollar(data_t::_gsm, 0, productions).substr(1, 1);
+		data._curr_attrs._uuid = results.dollar(data_t::_gsm, 0, productions).substr(1, 1);
 	};
 	parsertl::generator::build(grules, data_t::_gsm);
 

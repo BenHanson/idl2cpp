@@ -17,6 +17,9 @@ void output_source(data_t& data)
 		if (inf.first._level > 1)
 			continue;
 
+		if (inf.first._name.find("Event") != std::string::npos)
+			continue;
+
 		if (base(inf.first._name, data) != "IDispatch") continue;
 
 		for (auto& f : inf.second)

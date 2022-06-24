@@ -81,24 +81,31 @@ void output_if_namespace(const std::string& name, const data_t& data,
 		return;
 	}
 
-	auto iter = std::ranges::find_if(data._interfaces, [&name]
+	auto typedef_iter = std::ranges::find_if(data._typedefs, [&name](const auto& pair)
+		{
+			return pair.first == name;
+		});
+
+	if (typedef_iter != data._typedefs.cend())
+	{
+		const auto& ns = std::get<1>(typedef_iter->second);
+
+		if (ns != data._namespace.back())
+			ss << ns << "::";
+
+		return;
+	}
+
+	auto if_iter = std::ranges::find_if(data._interfaces, [&name]
 		(const auto& pair)
 	{
 		return pair.first._name == name;
 	});
 
-	if (std::ranges::find_if(data._typedefs, [&name](const auto& pair)
-		{
-			return pair.first == name;
-		}) != data._typedefs.cend())
+	if (if_iter != data._interfaces.cend() &&
+		if_iter->first._namespace != data._namespace.back())
 	{
-		return;
-	}
-
-	if (iter != data._interfaces.cend() &&
-		iter->first._namespace != data._namespace.back())
-	{
-		ss << iter->first._namespace << "::";
+		ss << if_iter->first._namespace << "::";
 	}
 	else
 	{
@@ -118,6 +125,7 @@ std::string convert_prop(const std::string& type, data_t& data)
 	static type_conv list_[] =
 	{
 		{ "BOOL", "bNewValue" },
+		{ "int", "nNewValue" },
 		{ "LPCTSTR", "lpszNewValue" },
 		{ "long", "nNewValue" },
 		{ "short", "nNewValue" }

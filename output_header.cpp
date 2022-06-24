@@ -46,6 +46,9 @@ void output_header(data_t& data)
 		if (inf.first._level > 1 || inf.second.empty())
 			continue;
 
+		if (inf.first._name.find("Event") != std::string::npos)
+			continue;
+
 		if (base(inf.first._name, data) != "IDispatch")
 			continue;
 
@@ -58,7 +61,13 @@ void output_header(data_t& data)
 		if (!inf.first._help.empty())
 			std::cout << "\n// " << inf.first._help;
 
+		if (inf.first._hidden)
+		{
+			std::cout << "\n// [hidden]";
+		}
+
 		std::cout << "\nstruct AFX_EXT_CLASS " << inf.first._name << " : ";
+		output_if_namespace(base_type, data, std::cout);
 		std::cout << base_type << "\n{\n";
 		std::cout << '\t' << inf.first._name << "() {}\n";
 		std::cout << '\t' << inf.first._name << "(LPDISPATCH pDispatch) :\n\t\t";

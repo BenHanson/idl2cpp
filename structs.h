@@ -12,7 +12,7 @@ struct param_t
 		unknown, in, out, in_out, retval
 	};
 
-	kind _kind = kind::in;
+	kind _kind = kind::unknown;
 	std::string _help;
 	std::string _com_type;
 	std::size_t _com_stars = 0;
@@ -53,6 +53,7 @@ struct func_t
 
 struct interface_t
 {
+	bool _hidden = false;
 	std::string _uuid;
 	std::size_t _level = 0;
 	std::string _namespace;
@@ -72,6 +73,22 @@ struct enum_data
 	std::string _help;
 	std::size_t _level = 0;
 	std::map<std::string, std::string> _enums;
+};
+
+struct attrs_t
+{
+	std::string _defaultvalue;
+	std::string _helpstring;
+	bool _hidden = false;
+	std::size_t _id = ~0;
+	bool _lcid = false;
+	bool _propget = false;
+	bool _propput = false;
+	bool _propputref = false;
+	bool _restricted = false;
+	std::string _uuid;
+
+	void clear();
 };
 
 struct data_t;
@@ -94,18 +111,12 @@ struct data_t
 	std::map<std::string, std::string> _inherits;
 
 	std::string _lib_help;
-	std::string _curr_uuid;
-	std::string _curr_help;
 	interface_t* _curr_if = nullptr;
-	func_t::kind _curr_func_kind = func_t::kind::function;
-	std::size_t _curr_id;
+	attrs_t _curr_attrs;
 	param_t _curr_param;
-	bool _curr_hidden = false;
-	bool _curr_restricted = false;
 	std::string _curr_vt;
 	std::string _curr_vts;
 
-	bool _skip_param = false;
 	bool _properties = false;
 
 	std::stack<parsertl::match_results> _results_stack;

@@ -6,7 +6,7 @@
 
 void param_t::clear()
 {
-	_kind = kind::in;
+	_kind = kind::unknown;
 	_help.clear();
 	_com_type.clear();
 	_com_stars = 0;
@@ -32,6 +32,20 @@ void func_t::clear()
 	_ret_stars = 0;
 	_name.clear();
 	_params.clear();
+}
+
+void attrs_t::clear()
+{
+	_defaultvalue.clear();
+	_helpstring.clear();
+	_hidden = false;
+	_id = ~0;
+	_lcid = false;
+	_propget = false;
+	_propput = false;
+	_propputref = false;
+	_restricted = false;
+	_uuid.clear();
 }
 
 void data_t::parse(const std::string& pathname)
