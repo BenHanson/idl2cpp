@@ -80,7 +80,7 @@ struct attrs_t
 	std::string _defaultvalue;
 	std::string _helpstring;
 	bool _hidden = false;
-	std::size_t _id = ~0;
+	std::size_t _id = static_cast<std::size_t>(~0);
 	bool _lcid = false;
 	bool _propget = false;
 	bool _propput = false;
@@ -110,6 +110,7 @@ struct data_t
 	std::vector<std::string> _namespace;
 	std::map<std::string, std::string> _inherits;
 
+	bool _func = false;
 	std::string _lib_help;
 	interface_t* _curr_if = nullptr;
 	attrs_t _curr_attrs;

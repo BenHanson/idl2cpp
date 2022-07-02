@@ -146,7 +146,7 @@ void output_header(data_t& data)
 				}
 			}
 
-			convert_ret(f._ret_cpp_type, f._ret_stars);
+			convert_ret(f._ret_cpp_type);
 
 			if (f._ret_com_type != f._ret_cpp_type && f._ret_cpp_type != "CString")
 			{

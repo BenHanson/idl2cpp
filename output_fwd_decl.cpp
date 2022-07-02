@@ -5,7 +5,7 @@
 #include "output_fwd_decl.h"
 #include "structs.h"
 
-void output_fwd_decl(data_t& data)
+void output_fwd_decl(const data_t& data)
 {
 	std::cout << "#pragma once\n\n" << idl2cpp_comment() << '\n' <<
 		"namespace " << data._namespace.back() << "\n{\n";

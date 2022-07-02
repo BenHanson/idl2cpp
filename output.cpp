@@ -54,16 +54,16 @@ std::string base(const std::string& str, const data_t& data)
 void output_if_namespace(const std::string& name, const data_t& data,
 	std::ostream& ss)
 {
-	const std::string ns = data._namespace.back();
-	const std::pair key(ns, name);
+	const std::string curr_ns = data._namespace.back();
+	const std::pair key(curr_ns, name);
 
 	if (data._coclass.contains(key))
 		return;
 
-	if (std::ranges::find_if(data._interfaces, [&ns, name]
+	if (std::ranges::find_if(data._interfaces, [&curr_ns, name]
 	(const auto& pair)
 		{
-			return pair.first._namespace == ns && pair.first._name == name;
+			return pair.first._namespace == curr_ns && pair.first._name == name;
 		}) != data._interfaces.cend())
 	{
 		return;
@@ -88,10 +88,10 @@ void output_if_namespace(const std::string& name, const data_t& data,
 
 	if (typedef_iter != data._typedefs.cend())
 	{
-		const auto& ns = std::get<1>(typedef_iter->second);
+		const auto& td_ns = std::get<1>(typedef_iter->second);
 
-		if (ns != data._namespace.back())
-			ss << ns << "::";
+		if (td_ns != curr_ns)
+			ss << td_ns << "::";
 
 		return;
 	}
@@ -103,7 +103,7 @@ void output_if_namespace(const std::string& name, const data_t& data,
 	});
 
 	if (if_iter != data._interfaces.cend() &&
-		if_iter->first._namespace != data._namespace.back())
+		if_iter->first._namespace != curr_ns)
 	{
 		ss << if_iter->first._namespace << "::";
 	}
@@ -120,7 +120,7 @@ void output_if_namespace(const std::string& name, const data_t& data,
 	}
 }
 
-std::string convert_prop(const std::string& type, data_t& data)
+std::string convert_prop(const std::string& type, const data_t& data)
 {
 	static type_conv list_[] =
 	{
@@ -147,7 +147,7 @@ std::string convert_prop(const std::string& type, data_t& data)
 	return ret;
 }
 
-void convert_ret(std::string& type, std::size_t& stars)
+void convert_ret(std::string& type)
 {
 	static type_conv list_[] =
 	{
@@ -180,23 +180,19 @@ std::size_t last_char(const char c, const std::string& str,
 	const std::size_t where, int& parens)
 {
 	std::size_t ret = std::string::npos;
-	bool found = false;
 	const char* first = str.c_str();
 	const char* second = first + where - 1;
 
-	for (; !found && first != second; --second)
+	for (; first != second; --second)
 	{
 		if (*second == ')')
 			++parens;
 		else if (*second == '(')
 			--parens;
-		else if (*second == c)
+		else if (*second == c && !parens)
 		{
-			if (!parens)
-			{
-				ret = std::distance(first, second);
-				found = true;
-			}
+			ret = std::distance(first, second);
+			break;
 		}
 	}
 

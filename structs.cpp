@@ -39,7 +39,7 @@ void attrs_t::clear()
 	_defaultvalue.clear();
 	_helpstring.clear();
 	_hidden = false;
-	_id = ~0;
+	_id = static_cast<std::size_t>(~0);
 	_lcid = false;
 	_propget = false;
 	_propput = false;

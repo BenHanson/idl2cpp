@@ -40,7 +40,7 @@ void output_source(data_t& data)
 			if (ret_is_enum)
 				output_enum_namespace(f._ret_cpp_type, data, std::cout);
 
-			convert_ret(f._ret_cpp_type, f._ret_stars);
+			convert_ret(f._ret_cpp_type);
 			output_if_namespace(f._ret_cpp_type, data, ss);
 			ss << f._ret_cpp_type << std::string(f._ret_stars, '*') <<
 				' ' << inf.first._name << "::";

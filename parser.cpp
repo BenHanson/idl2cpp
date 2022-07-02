@@ -2,6 +2,7 @@
 
 #include <format>
 #include "../parsertl14/include/parsertl/generator.hpp"
+#include "predefined.h"
 #include "structs.h"
 
 void process_interface(data_t& data)
@@ -18,6 +19,68 @@ void process_interface(data_t& data)
 	data._curr_if->_hidden = data._curr_attrs._hidden;
 	data._curr_if->_help = std::move(data._curr_attrs._helpstring);
 	data._curr_attrs.clear();
+}
+
+void process_name(const bool has_name, data_t& data)
+{
+	if (data._curr_param._kind == param_t::kind::unknown)
+		data._curr_param._kind = param_t::kind::in;
+
+	if (data._curr_attrs._lcid)
+		return;
+
+	if (data._curr_if)
+	{
+		if (data._curr_param._kind == param_t::kind::retval)
+		{
+			auto& fun = data._interfaces.back().second.back();
+
+			fun._ret_com_type = data._curr_param._com_type;
+			fun._ret_cpp_type = data._curr_param._cpp_type;
+			fun._ret_stars = data._curr_param._com_stars ?
+				data._curr_param._com_stars - 1 : 0;
+
+			if (data._cpp)
+			{
+				fun._ret_vt = data._curr_vt;
+				fun._ret_vts = data._curr_vts;
+
+				if (fun._ret_stars && !fun._ret_vts.empty())
+					fun._ret_vts.insert(4, 1, 'P');
+			}
+		}
+		else
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+			auto& params = data._interfaces.back().second.back()._params;
+			param_t* param = nullptr;
+
+			params.push_back(param_t());
+			param = &params.back();
+			param->_name = has_name ?
+				results.dollar(data_t::_gsm, 0, productions).str() :
+				"newValue";
+			param->_com_type = data._curr_param._com_type;
+			param->_cpp_type = data._curr_param._cpp_type;
+			param->_kind = data._curr_param._kind;
+			param->_com_stars = data._curr_param._com_stars;
+			param->_cpp_stars = data._curr_param._cpp_stars;
+			param->_default_value = data._curr_param._default_value;
+			param->_optional = data._curr_param._optional;
+
+			if (data._cpp)
+			{
+				param->_vt = data._curr_vt;
+				param->_vts = data._curr_vts;
+
+				if (param->_cpp_stars && !param->_vts.empty() &&
+					!(param->_cpp_stars == 1 && (param->_com_type == "IDispatch" ||
+						param->_cpp_type == "IUnknown")))
+					param->_vts.insert(4, 1, 'P');
+			}
+		}
+	}
 }
 
 // IDL reference: https://msdn.microsoft.com/en-us/library/windows/desktop/aa367088(v=vs.85).aspx
@@ -169,9 +232,10 @@ void build_parser()
 		const std::size_t pos = lhs.find_first_not_of(" \t\r\n");
 		const std::string rhs = results.dollar(data._gsm, 1, productions).str();
 
-		data._typedefs[rhs] = std::make_tuple(data._namespace.size(),
-			data._namespace.back(),
-			pos == std::string::npos ? lhs : lhs.substr(pos));
+		if (!is_predefined(rhs))
+			data._typedefs[rhs] = std::make_tuple(data._namespace.size(),
+				data._namespace.back(),
+				pos == std::string::npos ? lhs : lhs.substr(pos));
 	};
 
 	grules.push("struct_union", "'struct' | 'union'");
@@ -223,6 +287,7 @@ void build_parser()
 		}
 
 		data._curr_attrs.clear();
+		data._func = false;
 	};
 	data_t::_actions[grules.push("function_name", "Name")] =
 		[](data_t& data)
@@ -248,6 +313,9 @@ void build_parser()
 			func->_hidden = data._curr_attrs._hidden;
 			func->_restricted = data._curr_attrs._restricted;
 
+			if (!data._curr_attrs._helpstring.empty())
+				func->_help.push_back(data._curr_attrs._helpstring);
+
 			if (func->_kind != func_t::kind::propput &&
 				func->_kind != func_t::kind::propputref &&
 				data._curr_param._com_type != "HRESULT")
@@ -260,6 +328,7 @@ void build_parser()
 			}
 
 			func->_id = data._curr_attrs._id;
+			data._func = true;
 		}
 
 		data._curr_attrs.clear();
@@ -308,9 +377,15 @@ void build_parser()
 				param = &func->_params.back();
 				param->_com_type = data._curr_param._com_type;
 				param->_com_stars = data._curr_param._com_stars;
-				param->_cpp_type = data._curr_param._cpp_type == "BSTR" ?
-					"CString" :
-					data._curr_param._cpp_type;
+
+				if (data._curr_param._cpp_type == "BSTR" && !param->_com_stars)
+				{
+					// It's not interesting to record the original type here
+					param->_com_type = param->_cpp_type = "LPCTSTR";
+				}
+				else
+					param->_cpp_type = data._curr_param._com_type;
+					
 				param->_cpp_stars = data._curr_param._cpp_stars;
 
 				if (data._cpp)
@@ -329,72 +404,23 @@ void build_parser()
 	grules.push("param_list", "%empty "
 		"| param "
 		"| param_list ',' param");
-	data_t::_actions[grules.push("param", "opt_attr_list type param_name opt_array")] =
+	data_t::_actions[grules.push("param", "opt_attr_list type opt_param_name")] =
 		[](data_t& data)
 	{
 		data._curr_attrs.clear();
 		data._curr_param.clear();
 	};
-	data_t::_actions[grules.push("param_name", "Name")] = [](data_t& data)
+	data_t::_actions[grules.push("opt_param_name", "%empty")] =
+		[](data_t& data)
 	{
-		if (data._curr_param._kind == param_t::kind::unknown)
-			data._curr_param._kind = param_t::kind::in;
-
-		if (data._curr_attrs._lcid)
-			return;
-
-		if (data._curr_if)
-		{
-			const auto& results = data._results_stack.top();
-			const auto& productions = data._productions_stack.top();
-
-			if (data._curr_param._kind == param_t::kind::retval)
-			{
-				auto& fun = data._interfaces.back().second.back();
-
-				fun._ret_com_type = data._curr_param._com_type;
-				fun._ret_cpp_type = data._curr_param._cpp_type;
-				fun._ret_stars = data._curr_param._com_stars ?
-					data._curr_param._com_stars - 1 : 0;
-
-				if (data._cpp)
-				{
-					fun._ret_vt = data._curr_vt;
-					fun._ret_vts = data._curr_vts;
-
-					if (fun._ret_stars && !fun._ret_vts.empty())
-						fun._ret_vts.insert(4, 1, 'P');
-				}
-			}
-			else
-			{
-				auto& params = data._interfaces.back().second.back()._params;
-				param_t* param = nullptr;
-
-				params.push_back(param_t());
-				param = &params.back();
-				param->_name = results.dollar(data_t::_gsm, 0, productions).str();
-				param->_com_type = data._curr_param._com_type;
-				param->_cpp_type = data._curr_param._cpp_type;
-				param->_kind = data._curr_param._kind;
-				param->_com_stars = data._curr_param._com_stars;
-				param->_cpp_stars = data._curr_param._cpp_stars;
-				param->_default_value = data._curr_param._default_value;
-				param->_optional = data._curr_param._optional;
-
-				if (data._cpp)
-				{
-					param->_vt = data._curr_vt;
-					param->_vts = data._curr_vts;
-
-					if (param->_cpp_stars && !param->_vts.empty() &&
-						!(param->_cpp_stars == 1 && (param->_com_type == "IDispatch" ||
-							param->_cpp_type == "IUnknown")))
-						param->_vts.insert(4, 1, 'P');
-				}
-			}
-		}
+		process_name(false, data);
 	};
+	data_t::_actions[grules.push("opt_param_name", "param_name opt_array")] =
+		[](data_t& data)
+	{
+		process_name(true, data);
+	};
+	grules.push("param_name", "Name");
 
 	grules.push("opt_name", "%empty "
 		"| Name");
@@ -411,23 +437,25 @@ void build_parser()
 	};
 	grules.push("name_star_list", "Name opt_stars "
 		"| name_star_list ',' Name opt_stars");
-	grules.push("type", "opt_const raw_type opt_stars");
+	data_t::_actions[grules.push("type", "opt_const raw_type opt_stars")] =
+		[](data_t& data)
+	{
+		if (data._curr_param._cpp_type == "BSTR" && !data._properties &&
+			(data._curr_param._kind == param_t::kind::unknown ||
+			data._curr_param._kind == param_t::kind::in) &&
+			data._curr_param._com_stars == 0)
+		{
+			// It's not interesting to record the original type here
+			data._curr_param._com_type = data._curr_param._cpp_type = "LPCTSTR";
+		}
+	};
 	grules.push("opt_const", "%empty | 'const'");
 	data_t::_actions[grules.push("raw_type", "'BSTR'")] =
 		[](data_t& data)
 	{
 		if (data._curr_if)
 		{
-			if ((data._curr_param._kind == param_t::kind::unknown ||
-				data._curr_param._kind == param_t::kind::in) && data._curr_param._com_stars == 0)
-			{
-				// It's not interesting to record the original type here
-				data._curr_param._com_type = data._curr_param._cpp_type = "LPCTSTR";
-			}
-			else
-			{
-				data._curr_param._com_type = data._curr_param._cpp_type = "BSTR";
-			}
+			data._curr_param._com_type = data._curr_param._cpp_type = "BSTR";
 
 			if (data._cpp)
 			{
@@ -825,8 +853,8 @@ void build_parser()
 		if (data._curr_if)
 		{
 			data._curr_param._com_type = "void";
-				
-			if (data._curr_param._kind == param_t::kind::unknown ||
+
+			if (!data._func && data._curr_param._kind == param_t::kind::unknown ||
 				data._curr_param._kind == param_t::kind::retval)
 			{
 				data._curr_param._cpp_type = "void";
@@ -966,8 +994,9 @@ void build_parser()
 	grules.push("attr", "'appobject' "
 		"| 'bindable' "
 		"| 'control' "
+		"| 'custom' '(' Uuid ',' String ')' "
 		// String could be another data type
-		"| 'custom' '(' '{' uuid '}' ',' String ')' "
+		"| 'custom' '(' '{' Uuid '}' ',' String ')' "
 		"| 'default' "
 		"| 'defaultbind'");
 	data_t::_actions[grules.push("attr", "'defaultvalue' '(' number_string ')'")] =
@@ -1206,7 +1235,7 @@ void build_parser()
 	lrules.push("*", R"(["]([^"\\]|\\.)*["])", grules.token_id("String"), ".");
 	lrules.push("*", "[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}",
 		grules.token_id("Uuid"), ".");
-	lrules.push("[/][/].*", lrules.skip());
+	lrules.push("[/][/].*|[/][*](?s:.)*?[*][/]", lrules.skip());
 	lrules.push("*", "\\s+", lrules.skip(), ".");
 
 	lexertl::generator::build(lrules, data_t::_lsm);

@@ -2,4 +2,4 @@
 
 struct data_t;
 
-void output_fwd_decl(data_t& data);
+void output_fwd_decl(const data_t& data);
