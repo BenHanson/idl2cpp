@@ -68,8 +68,11 @@ void output_source(data_t& data)
 					format_output(ss, ',', 1);
 				}
 
-				if (p._cpp_type == "VARIANT" && p._cpp_stars == 0)
+				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
+					p._kind == param_t::kind::in && p._cpp_stars == 0)
+				{
 					ss << "const ";
+				}
 
 				if ((f._kind == func_t::kind::propput ||
 					f._kind == func_t::kind::propputref) &&
@@ -84,8 +87,11 @@ void output_source(data_t& data)
 
 				ss << p._cpp_type << std::string(p._cpp_stars, '*');
 
-				if (p._cpp_type == "VARIANT" && p._cpp_stars == 0)
+				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
+					p._cpp_stars == 0)
+				{
 					ss << '&';
+				}
 
 				ss << ' ' << p._name;
 				first = false;
@@ -196,8 +202,11 @@ void output_source(data_t& data)
 				ss << ", ";
 				format_output(ss, ',', 2);
 
-				if (p._cpp_type == "const CURRENCY&" || p._cpp_type == "VARIANT" && p._cpp_stars == 0)
+				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
+					p._cpp_stars == 0)
+				{
 					ss << '&';
+				}
 
 				ss << p._name;
 			}

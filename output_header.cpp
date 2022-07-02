@@ -188,13 +188,19 @@ void output_header(data_t& data)
 				output_if_namespace(p._cpp_type, data, ss);
 				output_enum_namespace(p._cpp_type, data, ss);
 
-				if (p._cpp_type == "VARIANT" && p._cpp_stars == 0)
+				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
+					p._kind == param_t::kind::in && p._cpp_stars == 0)
+				{
 					ss << "const ";
+				}
 
 				ss << p._cpp_type << std::string(p._cpp_stars, '*');
 
-				if (p._cpp_type == "VARIANT" && p._cpp_stars == 0)
+				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
+					p._cpp_stars == 0)
+				{
 					ss << '&';
+				}
 
 				ss << ' ' << p._name;
 
