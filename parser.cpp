@@ -448,6 +448,14 @@ void build_parser()
 			// It's not interesting to record the original type here
 			data._curr_param._com_type = data._curr_param._cpp_type = "LPCTSTR";
 		}
+
+		if (data._curr_param._optional && data._curr_param._default_value.empty())
+		{
+			if (data._curr_param._cpp_stars)
+				data._curr_param._default_value = "nullptr";
+			else
+				data._curr_param._default_value = "0";
+		}
 	};
 	grules.push("opt_const", "%empty | 'const'");
 	data_t::_actions[grules.push("raw_type", "'BSTR'")] =
