@@ -540,8 +540,8 @@ void build_parser()
 	{
 		if (data._curr_if)
 		{
-			data._curr_param._com_type = "int64";
-			data._curr_param._cpp_type = "int64_t";
+			// It's not interesting to record the original type here
+			data._curr_param._com_type = data._curr_param._cpp_type = "int64_t";
 			data._seen_i64 = true;
 
 			if (data._cpp)
@@ -793,8 +793,8 @@ void build_parser()
 	{
 		if (data._curr_if)
 		{
-			data._curr_param._com_type = "uint64";
-			data._curr_param._cpp_type = "uint64_t";
+			// It's not interesting to record the original type here
+			data._curr_param._com_type = data._curr_param._cpp_type = "uint64_t";
 			data._seen_i64 = true;
 
 			if (data._cpp)

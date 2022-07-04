@@ -1,5 +1,6 @@
 const char g_events_template[] =
-R"(/***************************************************************
+R"(
+/***************************************************************
 *  QueryInterface -- Determines if this component supports the
 *  requested interface, places a pointer to that interface
 *  in ppvObj if it is

@@ -12,11 +12,12 @@ void output_header(data_t& data)
 
 	data.post_process();
 
+	std::cout << "#pragma once\n\n" << idl2cpp_comment();
+
 	if (data._seen_i64)
 		std::cout << "#include <cstdint>\n\n";
 
-	std::cout << "#pragma once\n\n" << idl2cpp_comment() << '\n' <<
-		"// http://support.microsoft.com/kb/134980\n"
+	std::cout << "// http://support.microsoft.com/kb/134980\n"
 		"#pragma warning(push)\n"
 		"#pragma warning(disable:4275)\n\n";
 

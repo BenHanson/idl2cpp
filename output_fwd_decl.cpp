@@ -7,7 +7,7 @@
 
 void output_fwd_decl(const data_t& data)
 {
-	std::cout << "#pragma once\n\n" << idl2cpp_comment() << '\n' <<
+	std::cout << "#pragma once\n\n" << idl2cpp_comment() <<
 		"namespace " << data._namespace.back() << "\n{\n";
 
 	for (auto& inf : data._interfaces)
