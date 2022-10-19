@@ -17,7 +17,7 @@ void output_header(data_t& data)
 	if (data._seen_i64)
 		std::cout << "#include <cstdint>\n\n";
 
-	std::cout << "// http://support.microsoft.com/kb/134980\n"
+	std::cout << "// https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4275?view=msvc-170\n"
 		"#pragma warning(push)\n"
 		"#pragma warning(disable:4275)\n\n";
 
