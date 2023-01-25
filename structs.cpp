@@ -84,7 +84,7 @@ void data_t::parse(const std::string& pathname)
 			}
 		}
 
-		parsertl::lookup(_gsm, iter, results, productions);
+		parsertl::lookup(iter, _gsm, results, productions);
 	}
 
 	if (results.entry.action == parsertl::action::error)

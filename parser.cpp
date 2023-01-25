@@ -15,7 +15,7 @@ void process_interface(data_t& data)
 	data._curr_if->_uuid = std::move(data._curr_attrs._uuid);
 	data._curr_if->_level = data._results_stack.size();
 	data._curr_if->_namespace = data._namespace.back();
-	data._curr_if->_name = results.dollar(data_t::_gsm, 1, productions).str();
+	data._curr_if->_name = results.dollar(1, data_t::_gsm, productions).str();
 	data._curr_if->_hidden = data._curr_attrs._hidden;
 	data._curr_if->_help = std::move(data._curr_attrs._helpstring);
 	data._curr_attrs.clear();
@@ -59,7 +59,7 @@ void process_name(const bool has_name, data_t& data)
 			params.push_back(param_t());
 			param = &params.back();
 			param->_name = has_name ?
-				results.dollar(data_t::_gsm, 0, productions).str() :
+				results.dollar(0, data_t::_gsm, productions).str() :
 				"newValue";
 			param->_com_type = data._curr_param._com_type;
 			param->_cpp_type = data._curr_param._cpp_type;
@@ -100,7 +100,7 @@ void build_parser()
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
-		std::string ns = results.dollar(data_t::_gsm, 0, productions).str();
+		std::string ns = results.dollar(0, data_t::_gsm, productions).str();
 
 		if (data._lib_help.empty())
 			data._lib_help = data._curr_attrs._helpstring;
@@ -115,7 +115,7 @@ void build_parser()
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
-		std::string name = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
+		std::string name = results.dollar(2, data_t::_gsm, productions).substr(1, 1);
 		std::string pathname;
 
 		name = name.substr(0, name.rfind('.')) + ".idl";
@@ -136,7 +136,7 @@ void build_parser()
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
-		std::string name = results.dollar(data_t::_gsm, 2, productions).str();
+		std::string name = results.dollar(2, data_t::_gsm, productions).str();
 
 		data._coclass.insert(std::pair(data._namespace.back(), std::move(name)));
 		data._curr_attrs.clear();
@@ -195,7 +195,7 @@ void build_parser()
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
-		std::string name = results.dollar(data_t::_gsm, 3, productions).str();
+		std::string name = results.dollar(3, data_t::_gsm, productions).str();
 
 		process_interface(data);
 		data._inherits[data._curr_if->_name] = std::move(name);
@@ -207,7 +207,7 @@ void build_parser()
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
-		const std::string name = results.dollar(data._gsm, 5, productions).str();
+		const std::string name = results.dollar(5, data._gsm, productions).str();
 
 		if (!data._enums.empty())
 		{
@@ -228,9 +228,9 @@ void build_parser()
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
-		const std::string lhs = results.dollar(data._gsm, 0, productions).str();
+		const std::string lhs = results.dollar(0, data._gsm, productions).str();
 		const std::size_t pos = lhs.find_first_not_of(" \t\r\n");
-		const std::string rhs = results.dollar(data._gsm, 1, productions).str();
+		const std::string rhs = results.dollar(1, data._gsm, productions).str();
 
 		if (!is_predefined(rhs))
 			data._typedefs[rhs] = std::make_tuple(data._namespace.size(),
@@ -296,7 +296,7 @@ void build_parser()
 		{
 			auto& results = data._results_stack.top();
 			auto& productions = data._productions_stack.top();
-			std::string name = results.dollar(data_t::_gsm, 0, productions).str();
+			std::string name = results.dollar(0, data_t::_gsm, productions).str();
 
 			data._interfaces.back().second.push_back(func_t());
 
@@ -342,7 +342,7 @@ void build_parser()
 		{
 			const auto& results = data._results_stack.top();
 			const auto& productions = data._productions_stack.top();
-			const std::string name = results.dollar(data_t::_gsm, 0, productions).str();
+			const std::string name = results.dollar(0, data_t::_gsm, productions).str();
 
 			data._interfaces.back().second.push_back(func_t());
 
@@ -432,8 +432,8 @@ void build_parser()
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
 
-		data._enums[results.dollar(data._gsm, 2, productions).str()] =
-			results.dollar(data._gsm, 0, productions).str();
+		data._enums[results.dollar(2, data._gsm, productions).str()] =
+			results.dollar(0, data._gsm, productions).str();
 	};
 	grules.push("name_star_list", "Name opt_stars "
 		"| name_star_list ',' Name opt_stars");
@@ -568,7 +568,7 @@ void build_parser()
 			auto& productions = data._productions_stack.top();
 
 			data._curr_param._com_type =
-				results.dollar(data_t::_gsm, 0, productions).str();
+				results.dollar(0, data_t::_gsm, productions).str();
 
 			if (data._curr_param._com_type == "OLE_CANCELBOOL")
 			{
@@ -756,8 +756,8 @@ void build_parser()
 			const auto& results = data._results_stack.top();
 			const auto& productions = data._productions_stack.top();
 
-			data._curr_param._com_type.assign(results.dollar(data_t::_gsm, 0, productions).first,
-				results.dollar(data_t::_gsm, 3, productions).second);
+			data._curr_param._com_type.assign(results.dollar(0, data_t::_gsm, productions).first,
+				results.dollar(3, data_t::_gsm, productions).second);
 			data._curr_param._cpp_type = "VARIANT";
 
 			if (data._cpp)
@@ -1015,7 +1015,7 @@ void build_parser()
 			const auto& results = data._results_stack.top();
 			const auto& production = data._productions_stack.top();
 
-			data._curr_param._default_value = results.dollar(data._gsm, 2, production).str();
+			data._curr_param._default_value = results.dollar(2, data._gsm, production).str();
 		}
 	};
 	grules.push("attr", "'displaybind' "
@@ -1029,7 +1029,7 @@ void build_parser()
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_attrs._helpstring = results.dollar(data_t::_gsm, 2, productions).substr(1, 1);
+		data._curr_attrs._helpstring = results.dollar(2, data_t::_gsm, productions).substr(1, 1);
 	};
 	data_t::_actions[grules.push("attr", "'hidden'")] =
 		[](data_t& data)
@@ -1043,7 +1043,7 @@ void build_parser()
 		const auto& productions = data._productions_stack.top();
 		std::stringstream ss;
 
-		ss << std::hex << results.dollar(data._gsm, 2, productions).str();
+		ss << std::hex << results.dollar(2, data._gsm, productions).str();
 		ss >> data._curr_attrs._id;
 	};
 	grules.push("attr", "'immediatebind'");
@@ -1112,7 +1112,7 @@ void build_parser()
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
 
-		data._curr_attrs._uuid = results.dollar(data._gsm, 2, productions).str();
+		data._curr_attrs._uuid = results.dollar(2, data._gsm, productions).str();
 	};
 	grules.push("attr", "'vararg'"
 		"| 'version' '(' Number ')'");
@@ -1127,14 +1127,14 @@ void build_parser()
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_attrs._uuid = results.dollar(data_t::_gsm, 0, productions).str();
+		data._curr_attrs._uuid = results.dollar(0, data_t::_gsm, productions).str();
 	};
 	data_t::_actions[grules.push("uuid", "String")] = [](data_t& data)
 	{
 		auto& results = data._results_stack.top();
 		auto& productions = data._productions_stack.top();
 
-		data._curr_attrs._uuid = results.dollar(data_t::_gsm, 0, productions).substr(1, 1);
+		data._curr_attrs._uuid = results.dollar(0, data_t::_gsm, productions).substr(1, 1);
 	};
 	parsertl::generator::build(grules, data_t::_gsm);
 
