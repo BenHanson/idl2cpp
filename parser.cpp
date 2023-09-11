@@ -862,7 +862,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = "void";
 
-			if (!data._func && data._curr_param._kind == param_t::kind::unknown ||
+			if ((!data._func && data._curr_param._kind == param_t::kind::unknown) ||
 				data._curr_param._kind == param_t::kind::retval)
 			{
 				data._curr_param._cpp_type = "void";

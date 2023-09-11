@@ -13,7 +13,11 @@ std::string idl2cpp_comment()
 	std::time_t t = std::time(nullptr);
 	char mbstr[19 + 1]{};
 
+#ifdef _WIN32
 	localtime_s(&time, &t);
+#else
+	time = *localtime(&t);
+#endif
 	std::strftime(mbstr, sizeof(mbstr), "%F %T", &time);
 	return std::format("// GENERATED CODE by idl2cpp {}\n", mbstr);
 }

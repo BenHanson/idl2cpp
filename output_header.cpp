@@ -87,7 +87,7 @@ void output_header(data_t& data)
 			std::stringstream ss;
 
 			if (f._restricted || f._name.find("Dummy") != std::string::npos ||
-				f._name.size() >= 3 && f._name.substr(f._name.size() - 3) == "Old")
+				(f._name.size() >= 3 && f._name.substr(f._name.size() - 3) == "Old"))
 			{
 				continue;
 			}
@@ -173,6 +173,8 @@ void output_header(data_t& data)
 				break;
 			case func_t::kind::propputref:
 				ss << "SetRef";
+				break;
+			default:
 				break;
 			}
 

@@ -41,42 +41,42 @@ std::pair<switches, std::string> params(int argc, const char* argv[])
 	{
 		const char* param = argv[i];
 
-		if (::_stricmp(param, "/enums") == 0)
+		if (::strcmp(param, "/enums") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::enums;
 		}
-		else if (::_stricmp(param, "/events_h") == 0)
+		else if (::strcmp(param, "/events_h") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::events_header;
 		}
-		else if (::_stricmp(param, "/events_cpp") == 0)
+		else if (::strcmp(param, "/events_cpp") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::events_source;
 		}
-		else if (::_stricmp(param, "/fwd_decls") == 0)
+		else if (::strcmp(param, "/fwd_decls") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::fwd_decls;
 		}
-		else if (::_stricmp(param, "/h") == 0)
+		else if (::strcmp(param, "/h") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::header;
 		}
-		else if (::_stricmp(param, "/cpp") == 0)
+		else if (::strcmp(param, "/cpp") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
