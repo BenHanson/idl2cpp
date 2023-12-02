@@ -33,7 +33,7 @@ std::string base(const std::string& str, const data_t& data)
 
 	do
 	{
-		if (iter == end)
+		/*if (iter == end)
 		{
 			auto typedef_iter = data._typedefs.find(ret);
 
@@ -42,7 +42,7 @@ std::string base(const std::string& str, const data_t& data)
 				ret = std::get<2>(typedef_iter->second);
 				iter = data._inherits.find(ret);
 			}
-		}
+		}*/
 
 		if (iter != end)
 			ret = iter->second;

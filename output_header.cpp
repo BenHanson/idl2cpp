@@ -44,10 +44,7 @@ void output_header(data_t& data)
 
 	for (auto& inf : data._interfaces)
 	{
-		if (inf.first._level > 1 || inf.second.empty())
-			continue;
-
-		if (inf.first._name.find("Event") != std::string::npos)
+		if (inf.first._level > 1)
 			continue;
 
 		if (base(inf.first._name, data) != "IDispatch")
@@ -67,7 +64,12 @@ void output_header(data_t& data)
 			std::cout << "\n// [hidden]";
 		}
 
-		std::cout << "\nstruct AFX_EXT_CLASS " << inf.first._name << " : ";
+		std::cout << "\nstruct ";
+
+		if (data._afx_ext_class)
+			std::cout << "AFX_EXT_CLASS ";
+
+		std::cout << inf.first._name << " : ";
 		output_if_namespace(base_type, data, std::cout);
 		std::cout << base_type << "\n{\n";
 		std::cout << '\t' << inf.first._name << "() {}\n";
@@ -128,7 +130,9 @@ void output_header(data_t& data)
 					p._name = convert_prop(p._cpp_type, data);
 				}
 
-				if (p._cpp_type != p._com_type)
+				if (p._cpp_type != p._com_type ||
+					(data._inherits.contains(p._cpp_type) &&
+					(p._cpp_stars > 1 || p._default_value == "0")))
 				{
 					std::cout << "\n\t// ";
 					output_if_namespace(p._com_type, data, std::cout);
@@ -161,18 +165,24 @@ void output_header(data_t& data)
 			ss << '\t';
 			output_if_namespace(f._ret_cpp_type, data, ss);
 			output_enum_namespace(f._ret_cpp_type, data, ss);
-			ss << f._ret_cpp_type << std::string(f._ret_stars, '*') << ' ';
+			ss << f._ret_cpp_type;
 
+			if (!data._inherits.contains(f._ret_cpp_type))
+				ss << std::string(f._ret_stars, '*');
+
+			ss << ' ';
+
+			// Lower case so as not to clash with other functions
 			switch (f._kind)
 			{
 			case func_t::kind::propget:
-				ss << "Get";
+				ss << "get";
 				break;
 			case func_t::kind::propput:
-				ss << "Set";
+				ss << "set";
 				break;
 			case func_t::kind::propputref:
-				ss << "SetRef";
+				ss << "setRef";
 				break;
 			default:
 				break;
@@ -197,7 +207,21 @@ void output_header(data_t& data)
 					ss << "const ";
 				}
 
-				ss << p._cpp_type << std::string(p._cpp_stars, '*');
+				if (data._inherits.contains(p._cpp_type) &&
+					(p._cpp_stars > 1 || p._default_value == "0"))
+				{
+					ss << "IDispatch";
+				}
+				else
+					ss << p._cpp_type;
+
+				if (data._inherits.contains(p._cpp_type) &&
+					p._cpp_stars < 2 && p._default_value != "0")
+				{
+					ss << '&';
+				}
+				else
+					ss << std::string(p._cpp_stars, '*');
 
 				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
 					p._cpp_stars == 0)

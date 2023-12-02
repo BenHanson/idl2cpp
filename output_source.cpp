@@ -17,10 +17,11 @@ void output_source(data_t& data)
 		if (inf.first._level > 1)
 			continue;
 
-		if (inf.first._name.find("Event") != std::string::npos)
+		if (base(inf.first._name, data) != "IDispatch")
 			continue;
 
-		if (base(inf.first._name, data) != "IDispatch") continue;
+		if (inf.second.empty() && data._inherits[inf.first._name] == "IDispatch")
+			continue;
 
 		for (auto& f : inf.second)
 		{
@@ -42,19 +43,24 @@ void output_source(data_t& data)
 
 			convert_ret(f._ret_cpp_type);
 			output_if_namespace(f._ret_cpp_type, data, ss);
-			ss << f._ret_cpp_type << std::string(f._ret_stars, '*') <<
-				' ' << inf.first._name << "::";
+			ss << f._ret_cpp_type;
 
+			if (!data._inherits.contains(f._ret_cpp_type))
+				ss << std::string(f._ret_stars, '*');
+
+			ss << ' ' << inf.first._name << "::";
+
+			// Lower case so as not to clash with other functions
 			switch (f._kind)
 			{
 			case func_t::kind::propget:
-				ss << "Get";
+				ss << "get";
 				break;
 			case func_t::kind::propput:
-				ss << "Set";
+				ss << "set";
 				break;
 			case func_t::kind::propputref:
-				ss << "SetRef";
+				ss << "setRef";
 				break;
 			default:
 				break;
@@ -84,10 +90,25 @@ void output_source(data_t& data)
 					p._name = convert_prop(p._cpp_type, data);
 				}
 
+				output_if_namespace(p._cpp_type, data, ss);
 				if (data._enum_map.find(p._cpp_type) != data._enum_map.cend())
 					output_enum_namespace(p._cpp_type, data, ss);
 
-				ss << p._cpp_type << std::string(p._cpp_stars, '*');
+				if (data._inherits.contains(p._cpp_type) &&
+					(p._cpp_stars > 1 || p._default_value == "0"))
+				{
+					ss << "IDispatch";
+				}
+				else
+					ss << p._cpp_type;
+
+				if (data._inherits.contains(p._cpp_type) &&
+					p._cpp_stars < 2 && p._default_value != "0")
+				{
+					ss << '&';
+				}
+				else
+					ss << std::string(p._cpp_stars, '*');
 
 				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&
 					p._cpp_stars == 0)
@@ -111,10 +132,10 @@ void output_source(data_t& data)
 
 				if (ret_is_enum)
 					output_enum_namespace(f._ret_cpp_type, data, std::cout);
-				else
+				else if (!data._inherits.contains(f._ret_cpp_type))
 					output_if_namespace(f._ret_cpp_type, data, std::cout);
 
-				std::cout << f._ret_cpp_type <<
+				std::cout << base(f._ret_cpp_type, data) <<
 					std::string(f._ret_stars, '*') << " result{};\n";
 			}
 
@@ -211,6 +232,12 @@ void output_source(data_t& data)
 				}
 
 				ss << p._name;
+
+				if (data._inherits.contains(p._cpp_type) &&
+					p._cpp_stars < 2 && p._default_value != "0")
+				{
+					ss << ".m_lpDispatch";
+				}
 			}
 
 			ss << ");";

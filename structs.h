@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../lexertl14/include/lexertl/iterator.hpp"
-#include "../parsertl14/include/parsertl/match_results.hpp"
-#include "../parsertl14/include/parsertl/state_machine.hpp"
-#include "../parsertl14/include/parsertl/token.hpp"
+#include <lexertl/iterator.hpp>
+#include <parsertl/match_results.hpp>
+#include <parsertl/state_machine.hpp>
+#include <parsertl/token.hpp>
 
 struct param_t
 {
@@ -102,6 +102,7 @@ struct data_t
 	inline static lexertl::state_machine _lsm;
 	inline static actions_t _actions;
 
+	bool _afx_ext_class = true;
 	bool _cpp = false;
 	bool _enum_class = true;
 	bool _seen_i64 = false;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "../parsertl14/include/parsertl/lookup.hpp"
-#include "../lexertl14/include/lexertl/memory_file.hpp"
+#include <parsertl/lookup.hpp>
+#include <lexertl/memory_file.hpp>
 #include "structs.h"
 
 void param_t::clear()

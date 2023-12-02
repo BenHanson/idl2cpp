@@ -33,7 +33,16 @@ void output_enums(const data_t& data)
 		{
 			if (!first) std::cout << ",\n";
 
-			std::cout << '\t' << p.second << " = " << p.first;
+			std::cout << '\t' << p.second << " = ";
+
+			if (p.first.starts_with("0x") && p.first.size() == 10 &&
+				p.first[2] != '0')
+			{
+				std::cout << "static_cast<int>(" << p.first << ')';
+			}
+			else
+				std::cout << p.first;
+
 			first = false;
 		}
 

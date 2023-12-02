@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
 #include <format>
-#include "../parsertl14/include/parsertl/generator.hpp"
+#include <parsertl/generator.hpp>
 #include "predefined.h"
 #include "structs.h"
 
@@ -81,6 +81,114 @@ void process_name(const bool has_name, data_t& data)
 			}
 		}
 	}
+}
+
+std::string ret_to_vt(const std::string& vt)
+{
+	static type_conv list_[] =
+	{
+		{ "CString", "VT_BSTR" },
+		{ "void", "VT_VOID" },
+		{ "BSTR", "VT_BSTR" },
+		{ "CURRENCY", "VT_CY" },
+		{ "DATE", "VT_DATE" },
+		{ "double", "VT_R8" },
+		{ "IDispatch", "VT_DISPATCH" },
+		{ "IUnknown", "VT_UNKNOWN" },
+		{ "int64_t", "VT_I8" },
+		{ "OLE_CANCELBOOL", "VT_BOOL" },
+		{ "OLE_COLOR", "VT_COLOR" },
+		{ "OLE_ENABLEDEFAULTBOOL", "VT_BOOL" },
+		{ "OLE_HANDLE", "VT_HANDLE" },
+		{ "OLE_OPTEXCLUSIVE", "VT_OPTEXCLUSIVE" },
+		{ "OLE_XPOS_CONTAINER", "VT_R4" },
+		{ "OLE_XPOS_HIMETRIC", "VT_XPOS_HIMETRIC" },
+		{ "OLE_XPOS_PIXELS", "VT_XPOS_PIXELS" },
+		{ "OLE_XSIZE_CONTAINER", "VT_R4" },
+		{ "OLE_XSIZE_HIMETRIC", "VT_XSIZE_HIMETRIC" },
+		{ "OLE_XSIZE_PIXELS", "VT_XSIZE_PIXELS" },
+		{ "OLE_YPOS_CONTAINER", "VT_R4" },
+		{ "OLE_YPOS_HIMETRIC", "VT_YPOS_HIMETRIC" },
+		{ "OLE_YPOS_PIXELS", "VT_YPOS_PIXELS" },
+		{ "OLE_YSIZE_CONTAINER", "VT_R4" },
+		{ "OLE_YSIZE_HIMETRIC", "VT_YSIZE_HIMETRIC" },
+		{ "OLE_YSIZE_PIXELS", "VT_YSIZE_PIXELS" },
+		{ "VARIANT", "VT_VARIANT" },
+		{ "SCODE", "VT_ERROR" },
+		{ "float", "VT_R4" },
+		{ "uint64_t", "VT_UI8" },
+		{ "BOOL", "VT_BOOL" },
+		{ "void", "VT_EMPTY" },
+		{ "char", "VT_I1" },
+		{ "int", "VT_I4" },
+		{ "long", "VT_I4" },
+		{ "short", "VT_I2" },
+		{ "wchar_t", "VT_I2" }
+	};
+	auto iter = std::find_if(std::begin(list_), std::end(list_),
+		[&vt](const auto& rhs)
+		{
+			return vt == rhs._in;
+		});
+	std::string ret;
+
+	if (iter != std::end(list_))
+		ret = iter->_out;
+
+	return ret;
+}
+
+std::string ret_to_vts(const std::string& vt)
+{
+	static type_conv list_[] =
+	{
+		{ "BSTR", "VTS_BSTR" },
+		{ "CURRENCY", "VTS_CY" },
+		{ "DATE", "VTS_DATE" },
+		{ "double", "VTS_R8" },
+		{ "IDispatch", "VTS_DISPATCH" },
+		{ "IUnknown", "VTS_UNKNOWN" },
+		{ "int64_t", "VTS_I8" },
+		{ "OLE_CANCELBOOL", "VT_BOOL" },
+		{ "OLE_COLOR", "VTS_COLOR" },
+		{ "OLE_ENABLEDEFAULTBOOL", "VTS_BOOL" },
+		{ "OLE_HANDLE", "VTS_HANDLE" },
+		{ "OLE_OPTEXCLUSIVE", "VTS_OPTEXCLUSIVE" },
+		{ "OLE_XPOS_CONTAINER", "VTS_R4" },
+		{ "OLE_XPOS_HIMETRIC", "VTS_XPOS_HIMETRIC" },
+		{ "OLE_XPOS_PIXELS", "VTS_XPOS_PIXELS" },
+		{ "OLE_XSIZE_CONTAINER", "VTS_R4" },
+		{ "OLE_XSIZE_HIMETRIC", "VTS_XSIZE_HIMETRIC" },
+		{ "OLE_XSIZE_PIXELS", "VTS_XSIZE_PIXELS" },
+		{ "OLE_YPOS_CONTAINER", "VTS_R4" },
+		{ "OLE_YPOS_HIMETRIC", "VTS_YPOS_HIMETRIC" },
+		{ "OLE_YPOS_PIXELS", "VTS_YPOS_PIXELS" },
+		{ "OLE_YSIZE_CONTAINER", "VTS_R4" },
+		{ "OLE_YSIZE_HIMETRIC", "VTS_YSIZE_HIMETRIC" },
+		{ "OLE_YSIZE_PIXELS", "VTS_YSIZE_PIXELS" },
+		{ "VARIANT", "VTS_VARIANT" },
+		{ "SCODE", "VTS_SCODE" },
+		{ "float", "VTS_R4" },
+		{ "uint64_t", "VTS_UI8" },
+		{ "BOOL", "VTS_BOOL" },
+		{ "void", "" },
+		{ "char", "VTS_I1" },
+		{ "int", "VTS_I4" },
+		{ "long", "VTS_I4" },
+		{ "short", "VTS_I2" },
+		{ "wchar_t", "VTS_I2" }
+	};
+	auto iter = std::find_if(std::begin(list_), std::end(list_),
+		[&vt](const auto& rhs)
+		{
+			return vt == rhs._in;
+		});
+	std::string ret;
+
+	if (iter != std::end(list_))
+		ret = iter->_out;
+
+	return ret;
 }
 
 // IDL reference: https://msdn.microsoft.com/en-us/library/windows/desktop/aa367088(v=vs.85).aspx
@@ -280,10 +388,33 @@ void build_parser()
 		"opt_attr_list type opt_call function_name '(' param_list ')' ';'")] =
 		[](data_t& data)
 	{
-		if (data._curr_if && data._curr_attrs._restricted)
+		if (data._curr_if)
 		{
-			data._interfaces.back().second.back()._restricted =
-				data._curr_attrs._restricted;
+			auto& f = data._interfaces.back().second.back();
+
+			if (f._ret_vt.empty())
+				f._ret_vt = ret_to_vt(f._ret_cpp_type.empty() ?
+					f._ret_com_type : f._ret_cpp_type);
+
+			if (f._ret_vts.empty())
+				f._ret_vts = ret_to_vts(f._ret_cpp_type.empty() ?
+					f._ret_com_type : f._ret_cpp_type);
+
+			if (data._curr_attrs._restricted)
+			{
+				f._restricted = data._curr_attrs._restricted;
+			}
+
+			if (f._ret_com_type == f._name &&
+				f._kind == func_t::kind::function)
+			{
+				f._name = "Get" + f._name;
+			}
+
+			if (f._id == std::string::npos)
+			{
+				data._interfaces.back().second.pop_back();
+			}
 		}
 
 		data._curr_attrs.clear();
@@ -303,6 +434,13 @@ void build_parser()
 			func_t* func = &data._interfaces.back().second.back();
 
 			func->_name = name;
+
+			if (func->_name == "DialogBox" ||
+				func->_name == "ExitWindows")
+			{
+				func->_name += '_';
+			}
+
 			func->_kind = data._curr_attrs._propget ?
 				func_t::kind::propget :
 				data._curr_attrs._propput ?
@@ -467,8 +605,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_BSTR";
-				data._curr_vts = "VTS_BSTR";
+				data._curr_vt = ret_to_vt("BSTR");
+				data._curr_vts = ret_to_vts("BSTR");
 			}
 		}
 	};
@@ -481,8 +619,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_CY";
-				data._curr_vts = "VTS_CY";
+				data._curr_vt = ret_to_vt("CURRENCY");
+				data._curr_vts = ret_to_vts("CURRENCY");
 			}
 		}
 	};
@@ -495,8 +633,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_DATE";
-				data._curr_vts = "VTS_DATE";
+				data._curr_vt = ret_to_vt("DATE");
+				data._curr_vts = ret_to_vts("DATE");
 			}
 		}
 	};
@@ -509,8 +647,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_R8";
-				data._curr_vts = "VTS_R8";
+				data._curr_vt = ret_to_vt("double");
+				data._curr_vts = ret_to_vts("double");
 			}
 		}
 	};
@@ -523,8 +661,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_DISPATCH";
-				data._curr_vts = "VTS_DISPATCH";
+				data._curr_vt = ret_to_vt("IDispatch");
+				data._curr_vts = ret_to_vts("IDispatch");
 			}
 		}
 	};
@@ -537,8 +675,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_UNKNOWN";
-				data._curr_vts = "VTS_UNKNOWN";
+				data._curr_vt = ret_to_vt("IUnknown");
+				data._curr_vts = ret_to_vts("IUnknown");
 			}
 		}
 	};
@@ -554,8 +692,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I8";
-				data._curr_vts = "VTS_I8";
+				data._curr_vt = ret_to_vt("int64_t");
+				data._curr_vts = ret_to_vts("int64_t"); 
 			}
 		}
 	};
@@ -576,8 +714,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_BOOL";
-					data._curr_vts = "VTS_BOOL";
+					data._curr_vt = ret_to_vt("OLE_CANCELBOOL");
+					data._curr_vts = ret_to_vts("OLE_CANCELBOOL");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_COLOR")
@@ -586,8 +724,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_COLOR";
-					data._curr_vts = "VTS_COLOR";
+					data._curr_vt = ret_to_vt("OLE_COLOR");
+					data._curr_vts = ret_to_vts("OLE_COLOR");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_ENABLEDEFAULTBOOL")
@@ -596,8 +734,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_BOOL";
-					data._curr_vts = "VTS_BOOL";
+					data._curr_vt = ret_to_vt("OLE_ENABLEDEFAULTBOOL");
+					data._curr_vts = ret_to_vts("OLE_ENABLEDEFAULTBOOL");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_HANDLE")
@@ -606,8 +744,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_HANDLE";
-					data._curr_vts = "VTS_HANDLE";
+					data._curr_vt = ret_to_vt("OLE_HANDLE");
+					data._curr_vts = ret_to_vts("OLE_HANDLE");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_OPTEXCLUSIVE")
@@ -616,8 +754,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_OPTEXCLUSIVE";
-					data._curr_vts = "VTS_OPTEXCLUSIVE";
+					data._curr_vt = ret_to_vt("OLE_OPTEXCLUSIVE");
+					data._curr_vts = ret_to_vts("OLE_OPTEXCLUSIVE");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XPOS_CONTAINER")
@@ -626,8 +764,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_R4";
-					data._curr_vts = "VTS_R4";
+					data._curr_vt = ret_to_vt("OLE_XPOS_CONTAINER");
+					data._curr_vts = ret_to_vts("OLE_XPOS_CONTAINER");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XPOS_HIMETRIC")
@@ -636,8 +774,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_XPOS_HIMETRIC";
-					data._curr_vts = "VTS_XPOS_HIMETRIC";
+					data._curr_vt = ret_to_vt("OLE_XPOS_HIMETRIC");
+					data._curr_vts = ret_to_vts("OLE_XPOS_HIMETRIC");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XPOS_PIXELS")
@@ -646,8 +784,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_XPOS_PIXELS";
-					data._curr_vts = "VTS_XPOS_PIXELS";
+					data._curr_vt = ret_to_vt("OLE_XPOS_PIXELS");
+					data._curr_vts = ret_to_vts("OLE_XPOS_PIXELS");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XSIZE_CONTAINER")
@@ -656,8 +794,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_R4";
-					data._curr_vts = "VTS_R4";
+					data._curr_vt = ret_to_vt("OLE_XSIZE_CONTAINER");
+					data._curr_vts = ret_to_vts("OLE_XSIZE_CONTAINER");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XSIZE_HIMETRIC")
@@ -666,8 +804,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_XSIZE_HIMETRIC";
-					data._curr_vts = "VTS_XSIZE_HIMETRIC";
+					data._curr_vt = ret_to_vt("OLE_XSIZE_HIMETRIC");
+					data._curr_vts = ret_to_vts("OLE_XSIZE_HIMETRIC");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_XSIZE_PIXELS")
@@ -676,8 +814,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_XSIZE_PIXELS";
-					data._curr_vts = "VTS_XSIZE_PIXELS";
+					data._curr_vt = ret_to_vt("OLE_XSIZE_PIXELS");
+					data._curr_vts = ret_to_vts("OLE_XSIZE_PIXELS");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YPOS_CONTAINER")
@@ -686,8 +824,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_R4";
-					data._curr_vts = "VTS_R4";
+					data._curr_vt = ret_to_vt("OLE_YPOS_CONTAINER");
+					data._curr_vts = ret_to_vts("OLE_YPOS_CONTAINER");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YPOS_HIMETRIC")
@@ -696,8 +834,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_YPOS_HIMETRIC";
-					data._curr_vts = "VTS_YPOS_HIMETRIC";
+					data._curr_vt = ret_to_vt("OLE_YPOS_HIMETRIC");
+					data._curr_vts = ret_to_vts("OLE_YPOS_HIMETRIC");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YPOS_PIXELS")
@@ -706,8 +844,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_YPOS_PIXELS";
-					data._curr_vts = "VTS_YPOS_PIXELS";
+					data._curr_vt = ret_to_vt("OLE_YPOS_PIXELS");
+					data._curr_vts = ret_to_vts("OLE_YPOS_PIXELS");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YSIZE_CONTAINER")
@@ -716,8 +854,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_R4";
-					data._curr_vts = "VTS_R4";
+					data._curr_vt = ret_to_vt("OLE_YSIZE_CONTAINER");
+					data._curr_vts = ret_to_vts("OLE_YSIZE_CONTAINER");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YSIZE_HIMETRIC")
@@ -726,8 +864,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_YSIZE_HIMETRIC";
-					data._curr_vts = "VTS_YSIZE_HIMETRIC";
+					data._curr_vt = ret_to_vt("OLE_YSIZE_HIMETRIC");
+					data._curr_vts = ret_to_vts("OLE_YSIZE_HIMETRIC");
 				}
 			}
 			else if (data._curr_param._com_type == "OLE_YSIZE_PIXELS")
@@ -736,8 +874,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_YSIZE_PIXELS";
-					data._curr_vts = "VTS_YSIZE_PIXELS";
+					data._curr_vt = ret_to_vt("OLE_YSIZE_PIXELS");
+					data._curr_vts = ret_to_vts("OLE_YSIZE_PIXELS");
 				}
 			}
 			else
@@ -762,8 +900,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_VARIANT";
-				data._curr_vts = "VTS_VARIANT";
+				data._curr_vt = ret_to_vt("VARIANT");
+				data._curr_vts = ret_to_vts("VARIANT");
 			}
 		}
 	};
@@ -776,8 +914,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_ERROR";
-				data._curr_vts = "VTS_SCODE";
+				data._curr_vt = ret_to_vt("SCODE");
+				data._curr_vts = ret_to_vts("SCODE");
 			}
 		}
 	};
@@ -791,8 +929,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_R4";
-				data._curr_vts = "VTS_R4";
+				data._curr_vt = ret_to_vt("float");
+				data._curr_vts = ret_to_vts("float");
 			}
 		}
 	};
@@ -807,8 +945,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_UI8";
-				data._curr_vts = "VTS_UI8";
+				data._curr_vt = ret_to_vt("uint64_t");
+				data._curr_vts = ret_to_vts("uint64_t");
 			}
 		}
 	};
@@ -822,16 +960,19 @@ void build_parser()
 
 			if (!data._curr_param._default_value.empty())
 			{
-				data._curr_param._default_value =
-					std::format("COleVariant(long({}))", data._curr_param._default_value);
+				if (data._curr_param._default_value == R"(_T(""))")
+					data._curr_param._default_value = R"(COleVariant(_T("")))";
+				else
+					data._curr_param._default_value =
+						std::format("COleVariant(long({}))", data._curr_param._default_value);
 			}
 			else if (data._curr_param._optional)
 				data._curr_param._default_value = "COleVariant(DISP_E_PARAMNOTFOUND, VT_ERROR)";
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_VARIANT";
-				data._curr_vts = "VTS_VARIANT";
+				data._curr_vt = ret_to_vt("VARIANT");
+				data._curr_vts = ret_to_vts("VARIANT");
 			}
 		}
 	};
@@ -850,8 +991,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_BOOL";
-				data._curr_vts = "VTS_BOOL";
+				data._curr_vt = ret_to_vt("BOOL");
+				data._curr_vts = ret_to_vts("BOOL");
 			}
 		}
 	};
@@ -869,7 +1010,7 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_EMPTY";
+					data._curr_vt = ret_to_vt("void");
 					data._curr_vts.clear();
 				}
 			}
@@ -879,8 +1020,8 @@ void build_parser()
 
 				if (data._cpp)
 				{
-					data._curr_vt = "VT_VARIANT";
-					data._curr_vts = "VTS_VARIANT";
+					data._curr_vt = ret_to_vt("VARIANT");
+					data._curr_vts = ret_to_vts("VARIANT");
 				}
 			}
 		}
@@ -894,8 +1035,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I1";
-				data._curr_vts = "VTS_I1";
+				data._curr_vt = ret_to_vt("char");
+				data._curr_vts = ret_to_vts("char");
 			}
 		}
 	};
@@ -908,8 +1049,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I4";
-				data._curr_vts = "VTS_I4";
+				data._curr_vt = ret_to_vt("int");
+				data._curr_vts = ret_to_vts("int");
 			}
 		}
 	};
@@ -922,8 +1063,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I4";
-				data._curr_vts = "VTS_I4";
+				data._curr_vt = ret_to_vt("long");
+				data._curr_vts = ret_to_vts("long");
 			}
 		}
 	};
@@ -936,8 +1077,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I2";
-				data._curr_vts = "VTS_I2";
+				data._curr_vt = ret_to_vt("short");
+				data._curr_vts = ret_to_vts("short");
 			}
 		}
 	};
@@ -950,8 +1091,8 @@ void build_parser()
 
 			if (data._cpp)
 			{
-				data._curr_vt = "VT_I2";
-				data._curr_vts = "VTS_I2";
+				data._curr_vt = ret_to_vt("wchar_t");
+				data._curr_vts = ret_to_vts("wchar_t");
 			}
 		}
 	};
@@ -1002,7 +1143,7 @@ void build_parser()
 	grules.push("attr", "'appobject' "
 		"| 'bindable' "
 		"| 'control' "
-		"| 'custom' '(' Uuid ',' String ')' "
+		"| 'custom' '(' Uuid ',' number_string ')' "
 		// String could be another data type
 		"| 'custom' '(' '{' Uuid '}' ',' String ')' "
 		"| 'default' "
@@ -1016,6 +1157,11 @@ void build_parser()
 			const auto& production = data._productions_stack.top();
 
 			data._curr_param._default_value = results.dollar(2, data._gsm, production).str();
+
+			if (data._curr_param._default_value == R"("")")
+			{
+				data._curr_param._default_value = R"(_T(""))";
+			}
 		}
 	};
 	grules.push("attr", "'displaybind' "

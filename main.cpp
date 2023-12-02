@@ -27,13 +27,13 @@ void throw_switch()
 	throw std::runtime_error("Switches are mutually exclusive");
 }
 
-std::pair<switches, std::string> params(int argc, const char* argv[])
+std::pair<switches, std::string> params(int argc, const char* argv[], data_t& data)
 {
 	std::pair<switches, std::string> ret;
 
 	if (argc == 1)
 		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
-			"| /events_h | /events_cpp | /fwd_decls | /h | /cpp]");
+			"| /events_h | /events_cpp | /fwd_decls | /h | /cpp] [/no_afx]");
 
 	ret.first = switches::none;
 
@@ -83,6 +83,10 @@ std::pair<switches, std::string> params(int argc, const char* argv[])
 
 			ret.first = switches::source;
 		}
+		else if (::strcmp(param, "/no_afx") == 0)
+		{
+			data._afx_ext_class = false;
+		}
 		else
 		{
 			if (!ret.second.empty())
@@ -116,8 +120,8 @@ int main(int argc, const char* argv[])
 {
 	try
 	{
-		auto [flag, pathname] = params(argc, argv);
 		data_t data;
+		auto [flag, pathname] = params(argc, argv, data);
 
 		build_parser();
 		//parse_all();
