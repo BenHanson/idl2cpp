@@ -7,8 +7,8 @@
 
 void process_interface(data_t& data)
 {
-	auto& results = data._results_stack.top();
-	auto& productions = data._productions_stack.top();
+	const auto& results = data._results_stack.top();
+	const auto& productions = data._productions_stack.top();
 
 	data._interfaces.emplace_back();
 	data._curr_if = &data._interfaces.back().first;
@@ -56,7 +56,7 @@ void process_name(const bool has_name, data_t& data)
 			auto& params = data._interfaces.back().second.back()._params;
 			param_t* param = nullptr;
 
-			params.push_back(param_t());
+			params.emplace_back();
 			param = &params.back();
 			param->_name = has_name ?
 				results.dollar(0, data_t::_gsm, productions).str() :
@@ -125,8 +125,7 @@ std::string ret_to_vt(const std::string& vt)
 		{ "short", "VT_I2" },
 		{ "wchar_t", "VT_I2" }
 	};
-	auto iter = std::find_if(std::begin(list_), std::end(list_),
-		[&vt](const auto& rhs)
+	auto iter = std::ranges::find_if(list_, [&vt](const auto& rhs)
 		{
 			return vt == rhs._in;
 		});
@@ -178,8 +177,7 @@ std::string ret_to_vts(const std::string& vt)
 		{ "short", "VTS_I2" },
 		{ "wchar_t", "VTS_I2" }
 	};
-	auto iter = std::find_if(std::begin(list_), std::end(list_),
-		[&vt](const auto& rhs)
+	auto iter = std::ranges::find_if(list_, [&vt](const auto& rhs)
 		{
 			return vt == rhs._in;
 		});
@@ -221,12 +219,18 @@ void build_parser()
 	grules.push("lib_stmt", "'dispinterface' Name");
 	data_t::_actions[grules.push("lib_stmt", "'importlib' '(' String ')'")] = [](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 		std::string name = results.dollar(2, data_t::_gsm, productions).substr(1, 1);
 		std::string pathname;
 
-		name = name.substr(0, name.rfind('.')) + ".idl";
+		name = name.substr(0, name.rfind('.'));
+
+		if (data._namespace.size() == 1)
+			data._includes.insert(name + ".h");
+
+		name += ".idl";
+
 		pathname = data._path + name;
 
 		if (!data._files.contains(pathname))
@@ -242,11 +246,11 @@ void build_parser()
 	data_t::_actions[grules.push("lib_stmt",
 		"attr_list 'coclass' coclass_name '{' interface_list '}'")] = [](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 		std::string name = results.dollar(2, data_t::_gsm, productions).str();
 
-		data._coclass.insert(std::pair(data._namespace.back(), std::move(name)));
+		data._coclass.emplace(data._namespace.back(), std::move(name));
 		data._curr_attrs.clear();
 	};
 	data_t::_actions[grules.push("coclass_name", "Name")] = [](data_t& data)
@@ -301,8 +305,8 @@ void build_parser()
 	data_t::_actions[grules.push("interface", "'interface' Name ':' Name")] =
 		[](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 		std::string name = results.dollar(3, data_t::_gsm, productions).str();
 
 		process_interface(data);
@@ -315,7 +319,7 @@ void build_parser()
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
-		const std::string name = results.dollar(5, data._gsm, productions).str();
+		const std::string name = results.dollar(5, data_t::_gsm, productions).str();
 
 		if (!data._enums.empty())
 		{
@@ -336,9 +340,9 @@ void build_parser()
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
-		const std::string lhs = results.dollar(0, data._gsm, productions).str();
+		const std::string lhs = results.dollar(0, data_t::_gsm, productions).str();
 		const std::size_t pos = lhs.find_first_not_of(" \t\r\n");
-		const std::string rhs = results.dollar(1, data._gsm, productions).str();
+		const std::string rhs = results.dollar(1, data_t::_gsm, productions).str();
 
 		if (!is_predefined(rhs))
 			data._typedefs[rhs] = std::make_tuple(data._namespace.size(),
@@ -361,12 +365,30 @@ void build_parser()
 		"interface_list opt_attr_list 'interface' if_type ';'")] =
 		[](data_t& data)
 	{
+		if (data._curr_attrs._source)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+			const std::string name = results.dollar(3, data_t::_gsm, productions).str();
+
+			data._events.emplace(data._namespace.back(), name);
+		}
+
 		data._curr_attrs.clear();
 	};
 	data_t::_actions[grules.push("interface_list",
 		"interface_list opt_attr_list 'dispinterface' Name ';'")] =
 		[](data_t& data)
 	{
+		if (data._curr_attrs._source)
+		{
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
+			const std::string name = results.dollar(3, data_t::_gsm, productions).str();
+
+			data._events.emplace(data._namespace.back(), name);
+		}
+
 		data._curr_attrs.clear();
 	};
 	grules.push("if_type", "'IDispatch' | 'IUnknown' | Name");
@@ -392,13 +414,16 @@ void build_parser()
 		{
 			auto& f = data._interfaces.back().second.back();
 
-			if (f._ret_vt.empty())
-				f._ret_vt = ret_to_vt(f._ret_cpp_type.empty() ?
-					f._ret_com_type : f._ret_cpp_type);
+			if (data._cpp)
+			{
+				if (f._ret_vt.empty())
+					f._ret_vt = ret_to_vt(f._ret_cpp_type.empty() ?
+						f._ret_com_type : f._ret_cpp_type);
 
-			if (f._ret_vts.empty())
-				f._ret_vts = ret_to_vts(f._ret_cpp_type.empty() ?
-					f._ret_com_type : f._ret_cpp_type);
+				if (f._ret_vts.empty())
+					f._ret_vts = ret_to_vts(f._ret_cpp_type.empty() ?
+						f._ret_com_type : f._ret_cpp_type);
+			}
 
 			if (data._curr_attrs._restricted)
 			{
@@ -425,11 +450,11 @@ void build_parser()
 	{
 		if (data._curr_if)
 		{
-			auto& results = data._results_stack.top();
-			auto& productions = data._productions_stack.top();
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
 			std::string name = results.dollar(0, data_t::_gsm, productions).str();
 
-			data._interfaces.back().second.push_back(func_t());
+			data._interfaces.back().second.emplace_back();
 
 			func_t* func = &data._interfaces.back().second.back();
 
@@ -482,7 +507,7 @@ void build_parser()
 			const auto& productions = data._productions_stack.top();
 			const std::string name = results.dollar(0, data_t::_gsm, productions).str();
 
-			data._interfaces.back().second.push_back(func_t());
+			data._interfaces.back().second.emplace_back();
 
 			func_t* func = &data._interfaces.back().second.back();
 
@@ -506,12 +531,12 @@ void build_parser()
 			{
 				param_t* param = nullptr;
 
-				data._interfaces.back().second.push_back(func_t());
+				data._interfaces.back().second.emplace_back();
 				func = &data._interfaces.back().second.back();
 				func->_id = data._curr_attrs._id;
 				func->_name = name;
 				func->_kind = func_t::kind::propput;
-				func->_params.push_back(param_t());
+				func->_params.emplace_back();
 				param = &func->_params.back();
 				param->_com_type = data._curr_param._com_type;
 				param->_com_stars = data._curr_param._com_stars;
@@ -570,8 +595,8 @@ void build_parser()
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
 
-		data._enums[results.dollar(2, data._gsm, productions).str()] =
-			results.dollar(0, data._gsm, productions).str();
+		data._enums[results.dollar(2, data_t::_gsm, productions).str()] =
+			results.dollar(0, data_t::_gsm, productions).str();
 	};
 	grules.push("name_star_list", "Name opt_stars "
 		"| name_star_list ',' Name opt_stars");
@@ -702,8 +727,8 @@ void build_parser()
 	{
 		if (data._curr_if)
 		{
-			auto& results = data._results_stack.top();
-			auto& productions = data._productions_stack.top();
+			const auto& results = data._results_stack.top();
+			const auto& productions = data._productions_stack.top();
 
 			data._curr_param._com_type =
 				results.dollar(0, data_t::_gsm, productions).str();
@@ -960,8 +985,9 @@ void build_parser()
 
 			if (!data._curr_param._default_value.empty())
 			{
-				if (data._curr_param._default_value == R"(_T(""))")
-					data._curr_param._default_value = R"(COleVariant(_T("")))";
+				if (data._curr_param._default_value.starts_with("_T(\""))
+					data._curr_param._default_value =
+						"COleVariant(" + data._curr_param._default_value + ')';
 				else
 					data._curr_param._default_value =
 						std::format("COleVariant(long({}))", data._curr_param._default_value);
@@ -1156,11 +1182,12 @@ void build_parser()
 			const auto& results = data._results_stack.top();
 			const auto& production = data._productions_stack.top();
 
-			data._curr_param._default_value = results.dollar(2, data._gsm, production).str();
+			data._curr_param._default_value = results.dollar(2, data_t::_gsm, production).str();
 
-			if (data._curr_param._default_value == R"("")")
+			if (data._curr_param._default_value[0] == '"')
 			{
-				data._curr_param._default_value = R"(_T(""))";
+				data._curr_param._default_value =
+					"_T(" + data._curr_param._default_value + ')';
 			}
 		}
 	};
@@ -1172,8 +1199,8 @@ void build_parser()
 		"| 'helpfile' '(' String ')'");
 	data_t::_actions[grules.push("attr", "'helpstring' '(' String ')'")] = [](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 
 		data._curr_attrs._helpstring = results.dollar(2, data_t::_gsm, productions).substr(1, 1);
 	};
@@ -1189,16 +1216,18 @@ void build_parser()
 		const auto& productions = data._productions_stack.top();
 		std::stringstream ss;
 
-		ss << std::hex << results.dollar(2, data._gsm, productions).str();
+		ss << std::hex << results.dollar(2, data_t::_gsm, productions).str();
 		ss >> data._curr_attrs._id;
 	};
 	grules.push("attr", "'immediatebind'");
 	data_t::_actions[grules.push("attr", "'in' ")] = [](data_t& data)
 	{
-		if (data._curr_param._kind == param_t::kind::out)
-			data._curr_param._kind = param_t::kind::in_out;
+		using enum param_t::kind;
+
+		if (data._curr_param._kind == out)
+			data._curr_param._kind = in_out;
 		else
-			data._curr_param._kind = param_t::kind::in;
+			data._curr_param._kind = in;
 	};
 	data_t::_actions[grules.push("attr", "'lcid'")] = [](data_t& data)
 	{
@@ -1219,10 +1248,12 @@ void build_parser()
 	};
 	data_t::_actions[grules.push("attr", "'out'")] = [](data_t& data)
 	{
-		if (data._curr_param._kind == param_t::kind::in)
-			data._curr_param._kind = param_t::kind::in_out;
+		using enum param_t::kind;
+
+		if (data._curr_param._kind == in)
+			data._curr_param._kind = in_out;
 		else
-			data._curr_param._kind = param_t::kind::out;
+			data._curr_param._kind = out;
 	};
 	data_t::_actions[grules.push("attr", "'propget'")] = [](data_t& data)
 	{
@@ -1251,14 +1282,18 @@ void build_parser()
 	{
 		data._curr_param._kind = param_t::kind::retval;
 	};
-	grules.push("attr", "'source'");
+	data_t::_actions[grules.push("attr", "'source'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs._source = true;
+	};
 	data_t::_actions[grules.push("attr", "'uuid' '(' uuid ')'")] =
 		[](data_t& data)
 	{
 		const auto& results = data._results_stack.top();
 		const auto& productions = data._productions_stack.top();
 
-		data._curr_attrs._uuid = results.dollar(2, data._gsm, productions).str();
+		data._curr_attrs._uuid = results.dollar(2, data_t::_gsm, productions).str();
 	};
 	grules.push("attr", "'vararg'"
 		"| 'version' '(' Number ')'");
@@ -1270,15 +1305,15 @@ void build_parser()
 	grules.push("number_name", "Number | Name");
 	data_t::_actions[grules.push("uuid", "Uuid")] = [](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 
 		data._curr_attrs._uuid = results.dollar(0, data_t::_gsm, productions).str();
 	};
 	data_t::_actions[grules.push("uuid", "String")] = [](data_t& data)
 	{
-		auto& results = data._results_stack.top();
-		auto& productions = data._productions_stack.top();
+		const auto& results = data._results_stack.top();
+		const auto& productions = data._productions_stack.top();
 
 		data._curr_attrs._uuid = results.dollar(0, data_t::_gsm, productions).substr(1, 1);
 	};
@@ -1389,8 +1424,8 @@ void build_parser()
 	lrules.push("*", R"(["]([^"\\]|\\.)*["])", grules.token_id("String"), ".");
 	lrules.push("*", "[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}",
 		grules.token_id("Uuid"), ".");
-	lrules.push("[/][/].*|[/][*](?s:.)*?[*][/]", lrules.skip());
-	lrules.push("*", "\\s+", lrules.skip(), ".");
+	lrules.push("[/][/].*|[/][*](?s:.)*?[*][/]", lexertl::rules::skip());
+	lrules.push("*", "\\s+", lexertl::rules::skip(), ".");
 
 	lexertl::generator::build(lrules, data_t::_lsm);
 }

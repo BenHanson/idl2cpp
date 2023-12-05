@@ -8,27 +8,27 @@ void output_events_header(const data_t& data)
 	std::cout << "#pragma once\n\n" << idl2cpp_comment() <<
 		"namespace " << data._namespace.back() << "\n{";
 
-	for (auto& inf : data._interfaces)
+	for (auto& [iface, functions] : data._interfaces)
 	{
-		if (inf.first._level > 1)
+		if (iface._level > 1)
 			continue;
 
-		if (inf.first._name.find("Event") != std::string::npos)
+		if (data._events.contains(std::make_pair(iface._namespace, iface._name)))
 		{
-			std::cout << "\nconst IID IID_" << inf.first._name << " =\n" <<
-				"{ 0x" << inf.first._uuid.substr(0, 8) <<
-				", 0x" << inf.first._uuid.substr(9, 4) <<
-				", 0x" << inf.first._uuid.substr(14, 4) <<
-				" { 0x" << inf.first._uuid.substr(19, 2) <<
-				", 0x" << inf.first._uuid.substr(21, 2) <<
-				", 0x" << inf.first._uuid.substr(24, 2) <<
-				", 0x" << inf.first._uuid.substr(26, 2) <<
-				", 0x" << inf.first._uuid.substr(28, 2) <<
-				", 0x" << inf.first._uuid.substr(30, 2) <<
-				", 0x" << inf.first._uuid.substr(32, 2) <<
-				", 0x" << inf.first._uuid.substr(34, 2) <<
+			std::cout << "\nconst IID IID_" << iface._name << " =\n" <<
+				"{ 0x" << iface._uuid.substr(0, 8) <<
+				", 0x" << iface._uuid.substr(9, 4) <<
+				", 0x" << iface._uuid.substr(14, 4) <<
+				" { 0x" << iface._uuid.substr(19, 2) <<
+				", 0x" << iface._uuid.substr(21, 2) <<
+				", 0x" << iface._uuid.substr(24, 2) <<
+				", 0x" << iface._uuid.substr(26, 2) <<
+				", 0x" << iface._uuid.substr(28, 2) <<
+				", 0x" << iface._uuid.substr(30, 2) <<
+				", 0x" << iface._uuid.substr(32, 2) <<
+				", 0x" << iface._uuid.substr(34, 2) <<
 				" } };\n" <<
-				"\nclass C" << inf.first._name << "Listener : public IDispatch\n{\n"
+				"\nclass C" << iface._name << "Listener : public IDispatch\n{\n"
 				"public:\n"
 				"\t// IUnknown Methods\n"
 				"\tvirtual STDMETHODIMP QueryInterface(REFIID riid, "

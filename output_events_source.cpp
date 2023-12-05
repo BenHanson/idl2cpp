@@ -15,22 +15,22 @@ void output_events_source(const data_t& data)
 	std::cout << idl2cpp_comment() <<
 		"namespace " << data._namespace.back() << "\n{";
 
-	for (auto& inf : data._interfaces)
+	for (auto& [iface, functions] : data._interfaces)
 	{
-		if (inf.first._level > 1)
+		if (iface._level > 1)
 			continue;
 
-		if (inf.first._name.find("Event") != std::string::npos &&
-			!inf.second.empty())
+		if (data._events.contains(std::make_pair(iface._namespace, iface._name)) &&
+			!functions.empty())
 		{
 			std::string source(std::begin(g_events_template),
 				std::end(g_events_template));
 			std::ostringstream ss;
 
 			source = std::regex_replace(source, endl_rx, "\n");
-			source = std::regex_replace(source, name_rx, inf.first._name);
+			source = std::regex_replace(source, name_rx, iface._name);
 
-			for (const auto& f : inf.second)
+			for (const auto& f : functions)
 			{
 				std::size_t idx = 0;
 

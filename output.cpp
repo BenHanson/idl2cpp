@@ -31,7 +31,7 @@ std::string base(const std::string& str, const data_t& data)
 	auto iter = data._inherits.find(ret);
 	auto end = data._inherits.cend();
 
-	do
+	for (;;)
 	{
 		/*if (iter == end)
 		{
@@ -50,7 +50,25 @@ std::string base(const std::string& str, const data_t& data)
 			break;
 
 		iter = data._inherits.find(ret);
-	} while (1);
+	}
+
+	return ret;
+}
+
+std::string to_lower(const std::string& str)
+{
+	std::string ret;
+
+	for (char c : str)
+	{
+		if (c >= 'A' && c <= 'Z')
+		{
+			c -= 'A';
+			c += 'a';
+		}
+
+		ret += c;
+	}
 
 	return ret;
 }
@@ -59,12 +77,14 @@ void output_if_namespace(const std::string& name, const data_t& data,
 	std::ostream& ss)
 {
 	const std::string curr_ns = data._namespace.back();
-	const std::pair key(curr_ns, name);
 
-	if (data._coclass.contains(key))
+	if (const std::pair key(curr_ns, name);
+		data._coclass.contains(key))
+	{
 		return;
+	}
 
-	if (std::ranges::find_if(data._interfaces, [&curr_ns, name]
+	if (std::ranges::find_if(data._interfaces, [&curr_ns, &name]
 	(const auto& pair)
 		{
 			return pair.first._namespace == curr_ns && pair.first._name == name;
@@ -73,29 +93,28 @@ void output_if_namespace(const std::string& name, const data_t& data,
 		return;
 	}
 
-	auto coclass_iter = std::ranges::find_if(data._coclass,
+	if (auto coclass_iter = std::ranges::find_if(data._coclass,
 		[&name](const auto& pair)
 		{
 			return pair.second == name;
 		});
-
-	if (coclass_iter != data._coclass.cend())
+		coclass_iter != data._coclass.cend())
 	{
 		ss << coclass_iter->first << "::";
 		return;
 	}
 
-	auto typedef_iter = std::ranges::find_if(data._typedefs, [&name](const auto& pair)
+	if (auto typedef_iter = std::ranges::find_if(data._typedefs,
+		[&name](const auto& pair)
 		{
 			return pair.first == name;
-		});
-
-	if (typedef_iter != data._typedefs.cend())
+		}); typedef_iter != data._typedefs.cend())
 	{
-		const auto& td_ns = std::get<1>(typedef_iter->second);
-
-		if (td_ns != curr_ns)
+		if (const auto& td_ns = std::get<1>(typedef_iter->second);
+			td_ns != curr_ns)
+		{
 			ss << td_ns << "::";
+		}
 
 		return;
 	}
@@ -113,8 +132,7 @@ void output_if_namespace(const std::string& name, const data_t& data,
 	}
 	else
 	{
-		auto ty_iter = std::find_if(data._typedefs.cbegin(), data._typedefs.cend(),
-			[&name](const auto& pair)
+		auto ty_iter = std::ranges::find_if(data._typedefs, [&name](const auto& pair)
 			{
 				return pair.first == name;
 			});
@@ -134,8 +152,7 @@ std::string convert_prop(const std::string& type, const data_t& data)
 		{ "long", "nNewValue" },
 		{ "short", "nNewValue" }
 	};
-	auto iter = std::find_if(std::begin(list_), std::end(list_),
-		[&type](const auto& rhs)
+	auto iter = std::ranges::find_if(list_, [&type](const auto& rhs)
 		{
 			return type == rhs._in;
 		});
@@ -143,7 +160,7 @@ std::string convert_prop(const std::string& type, const data_t& data)
 
 	if (iter != std::end(list_))
 		ret = iter->_out;
-	else if (data._enum_set.find(type) != data._enum_set.cend())
+	else if (data._enum_set.contains(type))
 		ret = "nNewValue";
 	else
 		ret = "newValue";
@@ -158,8 +175,7 @@ void convert_ret(std::string& type)
 		{ "", "void" },
 		{ "BSTR", "CString" }
 	};
-	auto iter = std::find_if(std::begin(list_), std::end(list_),
-		[&type](const auto& rhs)
+	auto iter = std::ranges::find_if(list_, [&type](const auto& rhs)
 		{
 			return type == rhs._in;
 		});
@@ -173,10 +189,10 @@ void output_enum_namespace(const std::string& name, const data_t& data,
 {
 	auto iter = data._enum_map.find(name);
 
-	if (iter != data._enum_map.cend())
+	if (iter != data._enum_map.cend() &&
+		iter->second._namespace != data._namespace.back())
 	{
-		if (iter->second._namespace != data._namespace.back())
-			ss << iter->second._namespace << "::";
+		ss << iter->second._namespace << "::";
 	}
 }
 

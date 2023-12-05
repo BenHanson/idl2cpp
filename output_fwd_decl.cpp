@@ -10,10 +10,10 @@ void output_fwd_decl(const data_t& data)
 	std::cout << "#pragma once\n\n" << idl2cpp_comment() <<
 		"namespace " << data._namespace.back() << "\n{\n";
 
-	for (auto& inf : data._interfaces)
+	for (auto& [iface, functions] : data._interfaces)
 	{
-		if (inf.first._level == 1)
-			std::cout << '\t' << "struct " << inf.first._name << ";\n";
+		if (iface._level == 1)
+			std::cout << '\t' << "struct " << iface._name << ";\n";
 	}
 
 	std::cout << "}\n";

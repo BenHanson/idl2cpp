@@ -94,7 +94,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(LEXERTL_ROOT);$(PARSERTL_ROOT)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../lexertl14/include;../parsertl14/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -113,7 +113,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(LEXERTL_ROOT);$(PARSERTL_ROOT)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../lexertl14/include;../parsertl14/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -134,7 +134,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(LEXERTL_ROOT);$(PARSERTL_ROOT)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../lexertl14/include;../parsertl14/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -157,7 +157,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(LEXERTL_ROOT);$(PARSERTL_ROOT)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../lexertl14/include;../parsertl14/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -86,6 +86,7 @@ struct attrs_t
 	bool _propput = false;
 	bool _propputref = false;
 	bool _restricted = false;
+	bool _source = false;
 	std::string _uuid;
 
 	void clear();
@@ -110,6 +111,7 @@ struct data_t
 	std::set<std::string> _files;
 	std::vector<std::string> _namespace;
 	std::map<std::string, std::string> _inherits;
+	std::set<std::string> _includes;
 
 	bool _func = false;
 	std::string _lib_help;
@@ -130,6 +132,7 @@ struct data_t
 	std::map<std::string, std::tuple<std::size_t, std::string, std::string>> _typedefs;
 	std::vector<std::pair<interface_t, std::vector<func_t>>> _interfaces;
 	std::set<std::pair<std::string, std::string>> _coclass;
+	std::set<std::pair<std::string, std::string>> _events;
 
 	void parse(const std::string& pathname);
 	void post_process();

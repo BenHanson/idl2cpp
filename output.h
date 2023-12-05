@@ -5,6 +5,7 @@
 struct data_t;
 
 std::string idl2cpp_comment();
+std::string to_lower(const std::string& str);
 std::string base(const std::string& str, const data_t& data);
 void output_if_namespace(const std::string& name, const data_t& data,
 	std::ostream& ss);

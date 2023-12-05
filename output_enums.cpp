@@ -9,16 +9,16 @@ void output_enums(const data_t& data)
 
 	std::cout << "namespace " << data._namespace.back() << "\n{";
 
-	for (const auto& pair : data._enum_map)
+	for (const auto& [name, enum_data] : data._enum_map)
 	{
-		if (pair.second._level > 1)
+		if (enum_data._level > 1)
 			continue;
 
 		bool first = true;
 
-		if (!pair.second._help.empty())
+		if (!enum_data._help.empty())
 		{
-			std::cout << "\n// " << pair.second._help;
+			std::cout << "\n// " << enum_data._help;
 		}
 
 		std::cout << "\nenum ";
@@ -26,22 +26,22 @@ void output_enums(const data_t& data)
 		if (data._enum_class)
 			std::cout << "class ";
 
-		std::cout << pair.first;
+		std::cout << name;
 		std::cout << "\n{\n";
 
-		for (auto& p : pair.second._enums)
+		for (const auto& [value, id] : enum_data._enums)
 		{
 			if (!first) std::cout << ",\n";
 
-			std::cout << '\t' << p.second << " = ";
+			std::cout << '\t' << id << " = ";
 
-			if (p.first.starts_with("0x") && p.first.size() == 10 &&
-				p.first[2] != '0')
+			if (value.starts_with("0x") && value.size() == 10 &&
+				value[2] != '0')
 			{
-				std::cout << "static_cast<int>(" << p.first << ')';
+				std::cout << "static_cast<int>(" << value << ')';
 			}
 			else
-				std::cout << p.first;
+				std::cout << value;
 
 			first = false;
 		}

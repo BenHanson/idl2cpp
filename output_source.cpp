@@ -10,20 +10,25 @@ void output_source(data_t& data)
 	data.post_process();
 
 	std::cout << idl2cpp_comment() <<
+		"#include \"pch.h\"\n\n" <<
+		"#include \"" << to_lower(data._namespace.back()) << ".h\"\n\n" <<
 		"namespace " << data._namespace.back() << "\n{";
 
-	for (auto& inf : data._interfaces)
+	for (auto& [iface, functions] : data._interfaces)
 	{
-		if (inf.first._level > 1)
+		if (iface._level > 1)
 			continue;
 
-		if (base(inf.first._name, data) != "IDispatch")
+		if (base(iface._name, data) != "IDispatch")
 			continue;
 
-		if (inf.second.empty() && data._inherits[inf.first._name] == "IDispatch")
+		if (functions.empty() && data._inherits[iface._name] == "IDispatch")
 			continue;
 
-		for (auto& f : inf.second)
+		if (data._events.contains(std::make_pair(iface._namespace, iface._name)))
+			continue;
+
+		for (auto& f : functions)
 		{
 			std::stringstream ss;
 			bool first = true;
@@ -36,7 +41,7 @@ void output_source(data_t& data)
 
 			std::cout << '\n';
 
-			bool ret_is_enum = data._enum_map.find(f._ret_cpp_type) != data._enum_map.cend();
+			bool ret_is_enum = data._enum_map.contains(f._ret_cpp_type);
 
 			if (ret_is_enum)
 				output_enum_namespace(f._ret_cpp_type, data, std::cout);
@@ -48,18 +53,20 @@ void output_source(data_t& data)
 			if (!data._inherits.contains(f._ret_cpp_type))
 				ss << std::string(f._ret_stars, '*');
 
-			ss << ' ' << inf.first._name << "::";
+			ss << ' ' << iface._name << "::";
 
 			// Lower case so as not to clash with other functions
 			switch (f._kind)
 			{
-			case func_t::kind::propget:
+				using enum func_t::kind;
+
+			case propget:
 				ss << "get";
 				break;
-			case func_t::kind::propput:
+			case propput:
 				ss << "set";
 				break;
-			case func_t::kind::propputref:
+			case propputref:
 				ss << "setRef";
 				break;
 			default:
@@ -91,7 +98,8 @@ void output_source(data_t& data)
 				}
 
 				output_if_namespace(p._cpp_type, data, ss);
-				if (data._enum_map.find(p._cpp_type) != data._enum_map.cend())
+
+				if (data._enum_map.contains(p._cpp_type))
 					output_enum_namespace(p._cpp_type, data, ss);
 
 				if (data._inherits.contains(p._cpp_type) &&
@@ -153,13 +161,13 @@ void output_source(data_t& data)
 				ss << ' ';
 				format_output(ss, ' ', 2);
 
-				if (data._enum_set.find(p._cpp_type) == data._enum_set.cend())
+				if (data._enum_set.contains(p._cpp_type))
 				{
-					ss << p._vts;
+					ss << "VTS_I4";
 				}
 				else
 				{
-					ss << "VTS_I4";
+					ss << p._vts;
 				}
 			}
 
@@ -177,13 +185,15 @@ void output_source(data_t& data)
 
 			switch (f._kind)
 			{
-			case func_t::kind::propget:
+				using enum func_t::kind;
+
+			case propget:
 				ss << "DISPATCH_PROPERTYGET";
 				break;
-			case func_t::kind::propput:
+			case propput:
 				ss << "DISPATCH_PROPERTYPUT";
 				break;
-			case func_t::kind::propputref:
+			case propputref:
 				ss << "DISPATCH_PROPERTYPUTREF";
 				break;
 			default:
@@ -199,13 +209,13 @@ void output_source(data_t& data)
 			}
 			else
 			{
-				if (data._enum_set.find(f._ret_cpp_type) == data._enum_set.cend())
+				if (data._enum_set.contains(f._ret_cpp_type))
 				{
-					ss << f._ret_vt;
+					ss << "VT_I4";
 				}
 				else
 				{
-					ss << "VT_I4";
+					ss << f._ret_vt;
 				}
 
 				ss << ", &result, ";

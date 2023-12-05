@@ -14,6 +14,18 @@ void output_header(data_t& data)
 
 	std::cout << "#pragma once\n\n" << idl2cpp_comment();
 
+	if (!data._enum_set.empty())
+		data._includes.insert(data._namespace.back() + "_enums.h");
+
+	data._includes.insert(data._namespace.back() + "_fwd.h");
+
+	for (const std::string& inc : data._includes)
+	{
+		std::cout << "#include \"" << to_lower(inc) << "\"\n";
+	}
+
+	std::cout << '\n';
+
 	if (data._seen_i64)
 		std::cout << "#include <cstdint>\n\n";
 
@@ -26,14 +38,14 @@ void output_header(data_t& data)
 
 	std::cout << "namespace " << data._namespace.back() << "\n{";
 
-	for (auto& pair : data._typedefs)
+	for (auto& [name, tuple] : data._typedefs)
 	{
-		if (std::get<0>(pair.second) == 1)
+		if (std::get<0>(tuple) == 1)
 		{
-			if (!is_predefined(pair.first))
+			if (!is_predefined(name))
 			{
-				std::cout << '\n' << "using " << pair.first << " = " <<
-					std::get<2>(pair.second) << ';';
+				std::cout << '\n' << "using " << name << " = " <<
+					std::get<2>(tuple) << ';';
 				seen_typedefs = true;
 			}
 		}
@@ -42,24 +54,27 @@ void output_header(data_t& data)
 	if (seen_typedefs)
 		std::cout << '\n';
 
-	for (auto& inf : data._interfaces)
+	for (auto& [iface, functions] : data._interfaces)
 	{
-		if (inf.first._level > 1)
+		if (iface._level > 1)
 			continue;
 
-		if (base(inf.first._name, data) != "IDispatch")
+		if (base(iface._name, data) != "IDispatch")
+			continue;
+
+		if (data._events.contains(std::make_pair(iface._namespace, iface._name)))
 			continue;
 
 		std::string base_type =
-			data._inherits.find(inf.first._name)->second;
+			data._inherits.find(iface._name)->second;
 
 		if (base_type == "IDispatch")
 			base_type = "COleDispatchDriver";
 
-		if (!inf.first._help.empty())
-			std::cout << "\n// " << inf.first._help;
+		if (!iface._help.empty())
+			std::cout << "\n// " << iface._help;
 
-		if (inf.first._hidden)
+		if (iface._hidden)
 		{
 			std::cout << "\n// [hidden]";
 		}
@@ -69,22 +84,23 @@ void output_header(data_t& data)
 		if (data._afx_ext_class)
 			std::cout << "AFX_EXT_CLASS ";
 
-		std::cout << inf.first._name << " : ";
+		std::cout << iface._name << " : ";
 		output_if_namespace(base_type, data, std::cout);
 		std::cout << base_type << "\n{\n";
-		std::cout << '\t' << inf.first._name << "() {}\n";
-		std::cout << '\t' << inf.first._name << "(LPDISPATCH pDispatch) :\n\t\t";
+		std::cout << '\t' << iface._name << "() {}\n";
+		std::cout << '\t' << iface._name << "(LPDISPATCH pDispatch) :\n\t\t";
 		output_if_namespace(base_type, data, std::cout);
 		std::cout << base_type << "(pDispatch) {}\n";
-		std::cout << '\t' << inf.first._name << "(const " << inf.first._name <<
+		std::cout << '\t' << iface._name << "(const " << iface._name <<
 			"& dispatchSrc) :\n\t\t";
 		output_if_namespace(base_type, data, std::cout);
-		std::cout << base_type << "(dispatchSrc) {}";
+		std::cout << base_type << "(dispatchSrc) {}\n\n";
+		std::cout << "\toperator LPDISPATCH() = delete;";
 
-		if (!inf.second.empty())
+		if (!functions.empty())
 			std::cout << '\n';
 
-		for (auto& f : inf.second)
+		for (auto& f : functions)
 		{
 			std::stringstream ss;
 
@@ -108,7 +124,7 @@ void output_header(data_t& data)
 				std::cout << "\n\t// [hidden]";
 			}
 
-			for (auto& p : f._params)
+			for (const auto& p : f._params)
 			{
 				if (p._optional)
 					seen_optional = true;
@@ -190,7 +206,7 @@ void output_header(data_t& data)
 
 			ss << f._name << '(';
 
-			for (auto& p : f._params)
+			for (const auto& p : f._params)
 			{
 				if (!first)
 				{

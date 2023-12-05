@@ -45,6 +45,7 @@ void attrs_t::clear()
 	_propput = false;
 	_propputref = false;
 	_restricted = false;
+	_source = false;
 	_uuid.clear();
 }
 
@@ -65,8 +66,8 @@ void data_t::parse(const std::string& pathname)
 		_path = pathname.substr(0, pathname.rfind('\\') + 1);
 	}
 
-	_results_stack.push(parsertl::match_results(iter->id, _gsm));
-	_productions_stack.push(data_t::token::token_vector());
+	_results_stack.emplace(iter->id, _gsm);
+	_productions_stack.emplace();
 
 	auto& results = _results_stack.top();
 	auto& productions = _productions_stack.top();
@@ -89,9 +90,10 @@ void data_t::parse(const std::string& pathname)
 
 	if (results.entry.action == parsertl::action::error)
 	{
-		const std::string err = "Parse error: " + pathname + '(' +
-			std::to_string(std::count(mf.data(), iter->first, '\n') + 1) +
-			')' + ": '" + iter->str() + "'\n";
+		const std::string err = std::format("Parse error: {}({}): '{}'\n",
+			pathname,
+			std::count(mf.data(), iter->first, '\n') + 1,
+			iter->str());
 
 		throw std::runtime_error(err);
 	}
@@ -103,9 +105,9 @@ void data_t::parse(const std::string& pathname)
 
 void data_t::post_process()
 {
-	for (auto& pair : _interfaces)
+	for (auto& [ifs, functions] : _interfaces)
 	{
-		for (auto& func : pair.second)
+		for (auto& func : functions)
 		{
 			if (func._ret_cpp_type.empty())
 				com_to_cpp(func._ret_com_type, func._ret_cpp_type,
@@ -143,7 +145,7 @@ void data_t::com_to_cpp(std::string& com_type, std::string& cpp_type,
 		vt = "VT_I4";
 		vts = "VTS_I4";
 	}
-	else if (std::ranges::find_if(_interfaces, [com_type](const auto& pair)
+	else if (std::ranges::find_if(_interfaces, [&com_type](const auto& pair)
 		{
 			return com_type == pair.first._name;
 		}) != _interfaces.cend())
@@ -152,7 +154,7 @@ void data_t::com_to_cpp(std::string& com_type, std::string& cpp_type,
 		vt = "VT_DISPATCH";
 		vts = "VTS_DISPATCH";
 	}
-	else if (std::ranges::find_if(_coclass, [com_type](const auto& pair)
+	else if (std::ranges::find_if(_coclass, [&com_type](const auto& pair)
 		{
 			return pair.second == com_type;
 		}) != _coclass.cend())

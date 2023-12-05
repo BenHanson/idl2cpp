@@ -22,25 +22,23 @@ enum class switches
 	source
 };
 
-void throw_switch()
+[[noreturn]] static void throw_switch()
 {
 	throw std::runtime_error("Switches are mutually exclusive");
 }
 
-std::pair<switches, std::string> params(int argc, const char* argv[], data_t& data)
+std::pair<switches, std::string> params(std::span<const char*> params, data_t& data)
 {
 	std::pair<switches, std::string> ret;
 
-	if (argc == 1)
+	if (params.size() == 1)
 		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
 			"| /events_h | /events_cpp | /fwd_decls | /h | /cpp] [/no_afx]");
 
 	ret.first = switches::none;
 
-	for (int i = 1; i < argc; ++i)
+	for (const char* param : params)
 	{
-		const char* param = argv[i];
-
 		if (::strcmp(param, "/enums") == 0)
 		{
 			if (ret.first != switches::none)
@@ -121,7 +119,7 @@ int main(int argc, const char* argv[])
 	try
 	{
 		data_t data;
-		auto [flag, pathname] = params(argc, argv, data);
+		auto [flag, pathname] = params(std::span(argv, argc), data);
 
 		build_parser();
 		//parse_all();
