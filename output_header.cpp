@@ -191,13 +191,15 @@ void output_header(data_t& data)
 			// Lower case so as not to clash with other functions
 			switch (f._kind)
 			{
-			case func_t::kind::propget:
+				using enum func_t::kind;
+
+			case propget:
 				ss << "get";
 				break;
-			case func_t::kind::propput:
+			case propput:
 				ss << "set";
 				break;
-			case func_t::kind::propputref:
+			case propputref:
 				ss << "setRef";
 				break;
 			default:

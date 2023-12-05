@@ -8,6 +8,7 @@
 #include "output_header.h"
 #include "output_source.h"
 #include "parser.h"
+#include <span>
 #include "structs.h"
 
 // Bit flags
@@ -31,7 +32,7 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 {
 	std::pair<switches, std::string> ret;
 
-	if (params.size() == 1)
+	if (params.empty())
 		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
 			"| /events_h | /events_cpp | /fwd_decls | /h | /cpp] [/no_afx]");
 
@@ -119,7 +120,7 @@ int main(int argc, const char* argv[])
 	try
 	{
 		data_t data;
-		auto [flag, pathname] = params(std::span(argv, argc), data);
+		auto [flag, pathname] = params(std::span(argv + 1, argc - 1), data);
 
 		build_parser();
 		//parse_all();

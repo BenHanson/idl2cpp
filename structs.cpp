@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include <format>
 #include <parsertl/lookup.hpp>
 #include <lexertl/memory_file.hpp>
 #include "structs.h"
