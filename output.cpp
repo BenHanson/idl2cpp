@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include <ctime>
+#include <chrono>
 #include <format>
 #include "output.h"
 #include "predefined.h"
@@ -9,17 +9,9 @@
 
 std::string idl2cpp_comment()
 {
-	tm time{};
-	std::time_t t = std::time(nullptr);
-	char mbstr[19 + 1]{};
-
-#ifdef _WIN32
-	localtime_s(&time, &t);
-#else
-	time = *localtime(&t);
-#endif
-	std::strftime(mbstr, sizeof(mbstr), "%F %T", &time);
-	return std::format("// GENERATED CODE by idl2cpp {}\n", mbstr);
+	return std::format("// GENERATED CODE by idl2cpp {:%Y-%m-%d %H:%M:%S}\n"
+		"// See https://github.com/BenHanson/idl2cpp\n",
+		floor<std::chrono::seconds>(std::chrono::system_clock::now()));
 }
 
 std::string base(const std::string& str, const data_t& data)
