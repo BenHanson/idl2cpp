@@ -45,7 +45,7 @@ void output_events_source(data_t& data)
 					if (idx > 0)
 						ss << ", ";
 
-					ss << p._com_type << std::string(p._cpp_stars, '*') << ' ' << p._name;
+					ss << p._com_type << std::string(p._com_stars, '*') << ' ' << p._name;
 
 					++idx;
 				}
@@ -60,7 +60,7 @@ void output_events_source(data_t& data)
 					ss << "\t\t\t// " << p._com_type;
 
 					if (!(p._vt == "VT_DISPATCH" && p._com_type != "IDispatch"))
-						ss << std::string(p._cpp_stars, '*');
+						ss << std::string(p._com_stars, '*');
 						
 					ss << ' ' << p._name;
 
