@@ -2,4 +2,4 @@
 
 struct data_t;
 
-void output_events_source(const data_t& data);
+void output_events_source(data_t& data);

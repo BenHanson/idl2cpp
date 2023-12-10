@@ -5,6 +5,18 @@
 #include <parsertl/state_machine.hpp>
 #include <parsertl/token.hpp>
 
+// Bit flags
+enum class switches
+{
+	none = 0,
+	enums = 1,
+	events_header = 2,
+	events_source = 4,
+	fwd_decls = 8,
+	header = 16,
+	source = 32
+};
+
 struct param_t
 {
 	enum class kind
@@ -104,7 +116,7 @@ struct data_t
 	inline static actions_t _actions;
 
 	bool _afx_ext_class = true;
-	bool _cpp = false;
+	switches _output = switches::none;
 	bool _enum_class = true;
 	bool _seen_i64 = false;
 	std::string _path;

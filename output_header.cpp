@@ -146,7 +146,9 @@ void output_header(data_t& data)
 					p._name = convert_prop(p._cpp_type, data);
 				}
 
-				if (p._cpp_type != p._com_type ||
+				if ((p._cpp_type != p._com_type &&
+					p._cpp_type != "BOOL" &&
+					p._cpp_type != "LPCTSTR") ||
 					(data._inherits.contains(p._cpp_type) &&
 					(p._cpp_stars > 1 || p._default_value == "0")))
 				{
@@ -169,7 +171,10 @@ void output_header(data_t& data)
 
 			convert_ret(f._ret_cpp_type);
 
-			if (f._ret_com_type != f._ret_cpp_type && f._ret_cpp_type != "CString")
+			if (f._ret_com_type != f._ret_cpp_type &&
+				f._ret_cpp_type != "BOOL" &&
+				f._ret_cpp_type != "CString" &&
+				f._ret_cpp_type != "LPCTSTR")
 			{
 				std::cout << "\n\t// returns ";
 				output_if_namespace(f._ret_com_type, data, std::cout);

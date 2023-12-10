@@ -11,18 +11,6 @@
 #include <span>
 #include "structs.h"
 
-// Bit flags
-enum class switches
-{
-	none,
-	enums,
-	events_header,
-	events_source,
-	fwd_decls,
-	header,
-	source
-};
-
 [[noreturn]] static void throw_switch()
 {
 	throw std::runtime_error("Switches are mutually exclusive");
@@ -34,7 +22,7 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 
 	if (params.empty())
 		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
-			"| /events_h | /events_cpp | /fwd_decls | /h | /cpp] [/no_afx]");
+			"| /events_h | /events_cpp | /fwd_decls | /h [/no_afx] | /cpp]");
 
 	ret.first = switches::none;
 
@@ -102,7 +90,7 @@ void parse_all()
 {
 	namespace fs = std::filesystem;
 
-	for (auto iter = fs::directory_iterator("D:\\IDL"),
+	for (auto iter = fs::directory_iterator("D:\\Ben\\Dev\\IDL"),
 		end = fs::directory_iterator(); iter != end; ++iter)
 	{
 		if (iter->path().extension() == ".idl")
@@ -110,6 +98,7 @@ void parse_all()
 			const std::string pathname = iter->path().string();
 			data_t data;
 
+			data._output = switches::events_source;
 			data.parse(pathname);
 		}
 	}
@@ -122,11 +111,9 @@ int main(int argc, const char* argv[])
 		data_t data;
 		auto [flag, pathname] = params(std::span(argv + 1, argc - 1), data);
 
+		data._output = flag;
 		build_parser();
 		//parse_all();
-
-		if (flag == switches::source)
-			data._cpp = true;
 
 		data.parse(pathname);
 

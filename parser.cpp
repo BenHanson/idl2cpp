@@ -40,7 +40,7 @@ void process_name(const bool has_name, data_t& data)
 			fun._ret_stars = data._curr_param._com_stars ?
 				data._curr_param._com_stars - 1 : 0;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				fun._ret_vt = data._curr_vt;
 				fun._ret_vts = data._curr_vts;
@@ -69,7 +69,7 @@ void process_name(const bool has_name, data_t& data)
 			param->_default_value = data._curr_param._default_value;
 			param->_optional = data._curr_param._optional;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				param->_vt = data._curr_vt;
 				param->_vts = data._curr_vts;
@@ -120,7 +120,7 @@ std::string ret_to_vt(const std::string& vt)
 		{ "BOOL", "VT_BOOL" },
 		{ "void", "VT_EMPTY" },
 		{ "char", "VT_I1" },
-		{ "int", "VT_I4" },
+		{ "int", "VT_INT" },
 		{ "long", "VT_I4" },
 		{ "short", "VT_I2" },
 		{ "wchar_t", "VT_I2" }
@@ -414,7 +414,7 @@ void build_parser()
 		{
 			auto& f = data._interfaces.back().second.back();
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				if (f._ret_vt.empty())
 					f._ret_vt = ret_to_vt(f._ret_cpp_type.empty() ?
@@ -521,7 +521,7 @@ void build_parser()
 			func->_hidden = data._curr_attrs._hidden;
 			func->_restricted = data._curr_attrs._restricted;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				func->_ret_vt = data._curr_vt;
 				func->_ret_vts = data._curr_vts;
@@ -543,15 +543,15 @@ void build_parser()
 
 				if (data._curr_param._cpp_type == "BSTR" && !param->_com_stars)
 				{
-					// It's not interesting to record the original type here
-					param->_com_type = param->_cpp_type = "LPCTSTR";
+					param->_com_type = "BSTR";
+					param->_cpp_type = "LPCTSTR";
 				}
 				else
 					param->_cpp_type = data._curr_param._com_type;
 					
 				param->_cpp_stars = data._curr_param._cpp_stars;
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					param->_vt = data._curr_vt;
 					param->_vts = data._curr_vts;
@@ -598,8 +598,6 @@ void build_parser()
 		data._enums[results.dollar(2, data_t::_gsm, productions).str()] =
 			results.dollar(0, data_t::_gsm, productions).str();
 	};
-	grules.push("name_star_list", "Name opt_stars "
-		"| name_star_list ',' Name opt_stars");
 	data_t::_actions[grules.push("type", "opt_const raw_type opt_stars")] =
 		[](data_t& data)
 	{
@@ -608,8 +606,8 @@ void build_parser()
 			data._curr_param._kind == param_t::kind::in) &&
 			data._curr_param._com_stars == 0)
 		{
-			// It's not interesting to record the original type here
-			data._curr_param._com_type = data._curr_param._cpp_type = "LPCTSTR";
+			data._curr_param._com_type = "BSTR";
+			data._curr_param._cpp_type = "LPCTSTR";
 		}
 
 		if (data._curr_param._optional && data._curr_param._default_value.empty())
@@ -628,7 +626,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "BSTR";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("BSTR");
 				data._curr_vts = ret_to_vts("BSTR");
@@ -642,7 +640,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "CURRENCY";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("CURRENCY");
 				data._curr_vts = ret_to_vts("CURRENCY");
@@ -656,7 +654,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "DATE";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("DATE");
 				data._curr_vts = ret_to_vts("DATE");
@@ -670,7 +668,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "double";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("double");
 				data._curr_vts = ret_to_vts("double");
@@ -684,7 +682,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "IDispatch";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("IDispatch");
 				data._curr_vts = ret_to_vts("IDispatch");
@@ -698,7 +696,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "IUnknown";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("IUnknown");
 				data._curr_vts = ret_to_vts("IUnknown");
@@ -715,7 +713,7 @@ void build_parser()
 			data._curr_param._com_type = data._curr_param._cpp_type = "int64_t";
 			data._seen_i64 = true;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("int64_t");
 				data._curr_vts = ret_to_vts("int64_t"); 
@@ -737,7 +735,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_CANCELBOOL";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_CANCELBOOL");
 					data._curr_vts = ret_to_vts("OLE_CANCELBOOL");
@@ -747,7 +745,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_COLOR";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_COLOR");
 					data._curr_vts = ret_to_vts("OLE_COLOR");
@@ -757,7 +755,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_ENABLEDEFAULTBOOL";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_ENABLEDEFAULTBOOL");
 					data._curr_vts = ret_to_vts("OLE_ENABLEDEFAULTBOOL");
@@ -767,7 +765,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_HANDLE";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_HANDLE");
 					data._curr_vts = ret_to_vts("OLE_HANDLE");
@@ -777,7 +775,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_OPTEXCLUSIVE";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_OPTEXCLUSIVE");
 					data._curr_vts = ret_to_vts("OLE_OPTEXCLUSIVE");
@@ -787,7 +785,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XPOS_CONTAINER";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XPOS_CONTAINER");
 					data._curr_vts = ret_to_vts("OLE_XPOS_CONTAINER");
@@ -797,7 +795,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XPOS_HIMETRIC";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XPOS_HIMETRIC");
 					data._curr_vts = ret_to_vts("OLE_XPOS_HIMETRIC");
@@ -807,7 +805,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XPOS_PIXELS";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XPOS_PIXELS");
 					data._curr_vts = ret_to_vts("OLE_XPOS_PIXELS");
@@ -817,7 +815,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XSIZE_CONTAINER";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XSIZE_CONTAINER");
 					data._curr_vts = ret_to_vts("OLE_XSIZE_CONTAINER");
@@ -827,7 +825,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XSIZE_HIMETRIC";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XSIZE_HIMETRIC");
 					data._curr_vts = ret_to_vts("OLE_XSIZE_HIMETRIC");
@@ -837,7 +835,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_XSIZE_PIXELS";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_XSIZE_PIXELS");
 					data._curr_vts = ret_to_vts("OLE_XSIZE_PIXELS");
@@ -847,7 +845,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YPOS_CONTAINER";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YPOS_CONTAINER");
 					data._curr_vts = ret_to_vts("OLE_YPOS_CONTAINER");
@@ -857,7 +855,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YPOS_HIMETRIC";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YPOS_HIMETRIC");
 					data._curr_vts = ret_to_vts("OLE_YPOS_HIMETRIC");
@@ -867,7 +865,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YPOS_PIXELS";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YPOS_PIXELS");
 					data._curr_vts = ret_to_vts("OLE_YPOS_PIXELS");
@@ -877,7 +875,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YSIZE_CONTAINER";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YSIZE_CONTAINER");
 					data._curr_vts = ret_to_vts("OLE_YSIZE_CONTAINER");
@@ -887,7 +885,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YSIZE_HIMETRIC";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YSIZE_HIMETRIC");
 					data._curr_vts = ret_to_vts("OLE_YSIZE_HIMETRIC");
@@ -897,7 +895,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "OLE_YSIZE_PIXELS";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("OLE_YSIZE_PIXELS");
 					data._curr_vts = ret_to_vts("OLE_YSIZE_PIXELS");
@@ -923,7 +921,7 @@ void build_parser()
 				results.dollar(3, data_t::_gsm, productions).second);
 			data._curr_param._cpp_type = "VARIANT";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("VARIANT");
 				data._curr_vts = ret_to_vts("VARIANT");
@@ -937,7 +935,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "SCODE";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("SCODE");
 				data._curr_vts = ret_to_vts("SCODE");
@@ -952,7 +950,7 @@ void build_parser()
 			// It's not interesting to record the original type here
 			data._curr_param._com_type = data._curr_param._cpp_type = "float";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("float");
 				data._curr_vts = ret_to_vts("float");
@@ -968,7 +966,7 @@ void build_parser()
 			data._curr_param._com_type = data._curr_param._cpp_type = "uint64_t";
 			data._seen_i64 = true;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("uint64_t");
 				data._curr_vts = ret_to_vts("uint64_t");
@@ -995,7 +993,7 @@ void build_parser()
 			else if (data._curr_param._optional)
 				data._curr_param._default_value = "COleVariant(DISP_E_PARAMNOTFOUND, VT_ERROR)";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("VARIANT");
 				data._curr_vts = ret_to_vts("VARIANT");
@@ -1008,14 +1006,15 @@ void build_parser()
 		if (data._curr_if)
 		{
 			// It's not interesting to record the original type here
-			data._curr_param._com_type = data._curr_param._cpp_type = "BOOL";
+			data._curr_param._com_type = "VARIANT_BOOL";
+			data._curr_param._cpp_type = "BOOL";
 
 			if (data._curr_param._default_value == "-1")
 				data._curr_param._default_value = "TRUE";
 			else if (data._curr_param._default_value == "0")
 				data._curr_param._default_value = "FALSE";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("BOOL");
 				data._curr_vts = ret_to_vts("BOOL");
@@ -1034,7 +1033,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "void";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("void");
 					data._curr_vts.clear();
@@ -1044,7 +1043,7 @@ void build_parser()
 			{
 				data._curr_param._cpp_type = "VARIANT";
 
-				if (data._cpp)
+				if (data._output == switches::source || data._output == switches::events_source)
 				{
 					data._curr_vt = ret_to_vt("VARIANT");
 					data._curr_vts = ret_to_vts("VARIANT");
@@ -1059,7 +1058,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "char";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("char");
 				data._curr_vts = ret_to_vts("char");
@@ -1073,7 +1072,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "int";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("int");
 				data._curr_vts = ret_to_vts("int");
@@ -1087,7 +1086,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "long";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("long");
 				data._curr_vts = ret_to_vts("long");
@@ -1101,7 +1100,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "short";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("short");
 				data._curr_vts = ret_to_vts("short");
@@ -1115,7 +1114,7 @@ void build_parser()
 		{
 			data._curr_param._com_type = data._curr_param._cpp_type = "wchar_t";
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt = ret_to_vt("wchar_t");
 				data._curr_vts = ret_to_vts("wchar_t");
@@ -1128,9 +1127,9 @@ void build_parser()
 		if (data._curr_if)
 		{
 			data._curr_param._cpp_type.insert(0, "unsigned ");
-			data._curr_param._com_type = data._curr_param._com_type;
+			data._curr_param._com_type = data._curr_param._cpp_type;
 
-			if (data._cpp)
+			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				data._curr_vt.insert(3, 1, 'U');
 				data._curr_vts.insert(4, 1, 'U');
@@ -1298,9 +1297,6 @@ void build_parser()
 	grules.push("attr", "'vararg'"
 		"| 'version' '(' Number ')'");
 
-	grules.push("string_list", "String "
-		"| string_list String");
-
 	grules.push("number_string", "Number | String");
 	grules.push("number_name", "Number | Name");
 	data_t::_actions[grules.push("uuid", "Uuid")] = [](data_t& data)
@@ -1319,7 +1315,6 @@ void build_parser()
 	};
 	parsertl::generator::build(grules, data_t::_gsm);
 
-	// All keywords from Microsoft site:
 	lrules.push_state("ATTRIBUTES");
 
 	// Attributes:
