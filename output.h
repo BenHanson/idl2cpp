@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include "structs.h"
 
 struct data_t;
 
@@ -15,3 +15,6 @@ void output_enum_namespace(const std::string& name, const data_t& data,
 	std::ostream& ss);
 void format_output(std::stringstream& ss, const char c, const std::size_t tabs,
 	std::size_t offset = 0);
+
+std::string vt_to_member(const std::string& com_type, const std::size_t com_stars,
+	const std::string& vt, const std::map<std::string, enum_data>& enum_map);

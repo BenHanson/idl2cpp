@@ -87,8 +87,6 @@ std::string ret_to_vt(const std::string& vt)
 {
 	static type_conv list_[] =
 	{
-		{ "CString", "VT_BSTR" },
-		{ "void", "VT_VOID" },
 		{ "BSTR", "VT_BSTR" },
 		{ "CURRENCY", "VT_CY" },
 		{ "DATE", "VT_DATE" },
@@ -113,16 +111,18 @@ std::string ret_to_vt(const std::string& vt)
 		{ "OLE_YSIZE_CONTAINER", "VT_R4" },
 		{ "OLE_YSIZE_HIMETRIC", "VT_YSIZE_HIMETRIC" },
 		{ "OLE_YSIZE_PIXELS", "VT_YSIZE_PIXELS" },
-		{ "VARIANT", "VT_VARIANT" },
 		{ "SCODE", "VT_ERROR" },
-		{ "float", "VT_R4" },
-		{ "uint64_t", "VT_UI8" },
-		{ "BOOL", "VT_BOOL" },
-		{ "void", "VT_EMPTY" },
+		{ "VARIANT", "VT_VARIANT" },
+		{ "VARIANT_BOOL", "VT_BOOL" },
 		{ "char", "VT_I1" },
+		{ "float", "VT_R4" },
 		{ "int", "VT_INT" },
 		{ "long", "VT_I4" },
 		{ "short", "VT_I2" },
+		{ "uint64_t", "VT_UI8" },
+		{ "unsigned int", "VT_UINT" },
+		{ "unsigned long", "VT_UI4" },
+		{ "void", "VT_EMPTY" },
 		{ "wchar_t", "VT_I2" }
 	};
 	auto iter = std::ranges::find_if(list_, [&vt](const auto& rhs)
@@ -165,16 +165,18 @@ std::string ret_to_vts(const std::string& vt)
 		{ "OLE_YSIZE_CONTAINER", "VTS_R4" },
 		{ "OLE_YSIZE_HIMETRIC", "VTS_YSIZE_HIMETRIC" },
 		{ "OLE_YSIZE_PIXELS", "VTS_YSIZE_PIXELS" },
-		{ "VARIANT", "VTS_VARIANT" },
 		{ "SCODE", "VTS_SCODE" },
-		{ "float", "VTS_R4" },
-		{ "uint64_t", "VTS_UI8" },
-		{ "BOOL", "VTS_BOOL" },
-		{ "void", "" },
+		{ "VARIANT", "VTS_VARIANT" },
+		{ "VARIANT_BOOL", "VTS_BOOL" },
 		{ "char", "VTS_I1" },
+		{ "float", "VTS_R4" },
 		{ "int", "VTS_I4" },
 		{ "long", "VTS_I4" },
 		{ "short", "VTS_I2" },
+		{ "uint64_t", "VTS_UI8" },
+		{ "unsigned int", "VTS_UINT" },
+		{ "unsigned long", "VTS_UI4" },
+		{ "void", "" },
 		{ "wchar_t", "VTS_I2" }
 	};
 	auto iter = std::ranges::find_if(list_, [&vt](const auto& rhs)
@@ -417,12 +419,10 @@ void build_parser()
 			if (data._output == switches::source || data._output == switches::events_source)
 			{
 				if (f._ret_vt.empty())
-					f._ret_vt = ret_to_vt(f._ret_cpp_type.empty() ?
-						f._ret_com_type : f._ret_cpp_type);
+					f._ret_vt = ret_to_vt(f._ret_com_type);
 
 				if (f._ret_vts.empty())
-					f._ret_vts = ret_to_vts(f._ret_cpp_type.empty() ?
-						f._ret_com_type : f._ret_cpp_type);
+					f._ret_vts = ret_to_vts(f._ret_com_type);
 			}
 
 			if (data._curr_attrs._restricted)
@@ -1016,8 +1016,8 @@ void build_parser()
 
 			if (data._output == switches::source || data._output == switches::events_source)
 			{
-				data._curr_vt = ret_to_vt("BOOL");
-				data._curr_vts = ret_to_vts("BOOL");
+				data._curr_vt = ret_to_vt("VARIANT_BOOL");
+				data._curr_vts = ret_to_vts("VARIANT_BOOL");
 			}
 		}
 	};

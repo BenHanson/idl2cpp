@@ -257,3 +257,66 @@ void format_output(std::stringstream& ss, const char c, const std::size_t tabs,
 		ss.seekg(0, std::ios::beg);
 	}
 }
+
+std::string vt_to_member(const std::string& com_type, const std::size_t com_stars,
+	const std::string& vt, const std::map<std::string, enum_data>& enum_map)
+{
+	std::string ret;
+
+	if (com_type != "void")
+	{
+		switch (com_stars)
+		{
+		case 1:
+			ret = 'p';
+			break;
+		case 2:
+			ret = "pp";
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (com_type == "void")
+		ret = "byref";
+	else if (enum_map.contains(com_type))
+		ret += "lVal";
+	else
+	{
+		static type_conv list_[] =
+		{
+			{ "VT_I8", "llVal" },
+			{ "VT_I4", "lVal" },
+			{ "VT_UI1", "bVal" },
+			{ "VT_I2", "iVal" },
+			{ "VT_R4", "fltVal" },
+			{ "VT_R8", "dblVal" },
+			{ "VT_BOOL", "boolVal" },
+			{ "VT_ERROR", "scode" },
+			{ "VT_CY", "cyVal" },
+			{ "VT_DATE", "date" },
+			{ "VT_BSTR", "bstrVal" },
+			{ "VT_UNKNOWN", "unkVal" },
+			{ "VT_DISPATCH", "dispVal" },
+			{ "VT_ARRAY", "array" },
+			{ "VT_I1", "cVal" },
+			{ "VT_UI2", "uiVal" },
+			{ "VT_UI4", "ulVal" },
+			{ "VT_UI8", "ullVal" },
+			{ "VT_INT", "intVal" },
+			{ "VT_UINT", "uintVal" },
+			{ "VT_VARIANT", "varVal" }
+		};
+		const auto& type = vt;
+		auto iter = std::ranges::find_if(list_, [&type](const auto& rhs)
+			{
+				return type == rhs._in;
+			});
+
+		if (iter != std::end(list_))
+			ret += iter->_out;
+	}
+
+	return ret;
+}

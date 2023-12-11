@@ -45,12 +45,21 @@ void output_events_source(data_t& data)
 					if (idx > 0)
 						ss << ", ";
 
-					ss << p._com_type << std::string(p._com_stars, '*') << ' ' << p._name;
+					if (p._kind != param_t::kind::unknown &&
+						p._kind != param_t::kind::retval)
+					{
+						ss << '[' << (p._kind == param_t::kind::in ?
+							"in" :
+							p._kind == param_t::kind::out ?
+							"out" :
+							"in, out") << "] ";
+					}
 
+					ss << p._com_type << std::string(p._com_stars, '*') << ' ' << p._name;
 					++idx;
 				}
 
-				ss << ')' << '\n' << "\t\tif (pDispParams->cArgs != " <<
+				ss << ')' << "\n\t\tif (pDispParams->cArgs != " <<
 					f._params.size() << ")\n\t\t"
 					"{\n\t\t\treturn E_INVALIDARG;\n\t\t}\n"
 					"\t\telse\n\t\t{\n";
@@ -67,72 +76,17 @@ void output_events_source(data_t& data)
 					if (p._com_type == p._name)
 						ss << '_';
 
-					ss << " = pDispParams->rgvarg[" << idx - 1 << "].";
-
-					if (p._com_type == "void")
-						ss << "byref";
-					else
-					{
-						switch (p._com_stars)
-						{
-						case 1:
-							ss << 'p';
-							break;
-						case 2:
-							ss << "pp";
-							break;
-						default:
-							break;
-						}
-
-						if (p._vt == "VT_I8")
-							ss << "llVal";
-						else if (p._vt == "VT_I4")
-							ss << "lVal";
-						else if (p._vt == "VT_UI1")
-							ss << "bVal";
-						else if (p._com_type == "VT_I2")
-							ss << "iVal";
-						else if (p._vt == "VT_R4")
-							ss << "fltVal";
-						else if (p._vt == "VT_R8")
-							ss << "dblVal";
-						else if (p._vt == "VT_BOOL")
-							ss << "boolVal";
-						else if (p._vt == "VT_ERROR")
-							ss << "scode";
-						else if (p._vt == "VT_CY")
-							ss << "cyVal";
-						else if (p._vt == "VT_DATE")
-							ss << "date";
-						else if (p._vt == "VT_BSTR")
-							ss << "bstrVal";
-						else if (p._vt == "VT_UNKNOWN")
-							ss << "unkVal";
-						else if (p._vt == "VT_DISPATCH")
-							ss << "dispVal";
-						else if (p._vt == "VT_ARRAY")
-							ss << "array";
-						else if (p._vt == "VT_I1")
-							ss << "cVal";
-						else if (p._vt == "VT_UI2")
-							ss << "uiVal";
-						else if (p._vt == "VT_UI4")
-							ss << "ulVal";
-						else if (p._vt == "VT_UI8")
-							ss << "ullVal";
-						else if (p._vt == "VT_INT")
-							ss << "intVal";
-						else if (p._vt == "VT_UINT")
-							ss << "uintVal";
-						else if (p._vt == "VT_VARIANT")
-							ss << "varVal";
-						else if (data._enum_map.contains(p._com_type))
-							ss << "lVal";
-					}
-
-					ss << ";\n";
+					ss << " = pDispParams->rgvarg[" << idx - 1 << "]." <<
+						vt_to_member(p._com_type, p._com_stars, p._vt,
+							data._enum_map) << ";\n";
 					--idx;
+				}
+
+				if (f._ret_vt != "VT_EMPTY")
+				{
+					ss << "\t\t\t// " << "pVarResult->" <<
+						vt_to_member(f._ret_com_type, f._ret_stars,
+							f._ret_vt, data._enum_map) << " = your_ret;\n";
 				}
 
 				ss << "\t\t}\n\n\t\tbreak;\n";
