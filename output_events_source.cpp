@@ -22,6 +22,9 @@ void output_events_source(data_t& data)
 		if (iface._level > 1)
 			continue;
 
+		if (!data._filter.empty() && iface._name != data._filter)
+			continue;
+
 		if (data._events.contains(std::make_pair(iface._namespace, iface._name)) &&
 			!functions.empty())
 		{

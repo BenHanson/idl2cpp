@@ -13,13 +13,16 @@ void output_events_header(const data_t& data)
 		if (iface._level > 1)
 			continue;
 
+		if (!data._filter.empty() && iface._name != data._filter)
+			continue;
+
 		if (data._events.contains(std::make_pair(iface._namespace, iface._name)))
 		{
 			std::cout << "\nconst IID IID_" << iface._name << " =\n" <<
 				"{ 0x" << iface._uuid.substr(0, 8) <<
 				", 0x" << iface._uuid.substr(9, 4) <<
 				", 0x" << iface._uuid.substr(14, 4) <<
-				" { 0x" << iface._uuid.substr(19, 2) <<
+				", { 0x" << iface._uuid.substr(19, 2) <<
 				", 0x" << iface._uuid.substr(21, 2) <<
 				", 0x" << iface._uuid.substr(24, 2) <<
 				", 0x" << iface._uuid.substr(26, 2) <<

@@ -12,6 +12,9 @@ void output_fwd_decl(const data_t& data)
 
 	for (auto& [iface, functions] : data._interfaces)
 	{
+		if (!data._filter.empty() && iface._name != data._filter)
+			continue;
+
 		if (iface._level == 1)
 			std::cout << '\t' << "struct " << iface._name << ";\n";
 	}

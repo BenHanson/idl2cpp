@@ -14,6 +14,9 @@ void output_enums(const data_t& data)
 		if (enum_data._level > 1)
 			continue;
 
+		if (!data._filter.empty() && name != data._filter)
+			continue;
+
 		bool first = true;
 
 		if (!enum_data._help.empty())

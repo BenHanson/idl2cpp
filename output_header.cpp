@@ -59,6 +59,9 @@ void output_header(data_t& data)
 		if (iface._level > 1)
 			continue;
 
+		if (!data._filter.empty() && iface._name != data._filter)
+			continue;
+
 		if (base(iface._name, data) != "IDispatch")
 			continue;
 

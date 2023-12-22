@@ -22,12 +22,15 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 
 	if (params.empty())
 		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
-			"| /events_h | /events_cpp | /fwd_decls | /h [/no_afx] | /cpp]");
+			"| /events_h | /events_cpp | /fwd_decls | /h [/no_afx] | /cpp] "
+			"[/name <if name>]");
 
 	ret.first = switches::none;
 
-	for (const char* param : params)
+	for (std::size_t idx = 0, size = params.size(); idx < size; ++idx)
 	{
+		const char* param = params[idx];
+
 		if (::strcmp(param, "/enums") == 0)
 		{
 			if (ret.first != switches::none)
@@ -73,6 +76,15 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 		else if (::strcmp(param, "/no_afx") == 0)
 		{
 			data._afx_ext_class = false;
+		}
+		else if (::strcmp(param, "/name") == 0)
+		{
+			++idx;
+
+			if (idx == size)
+				throw std::runtime_error("Missing interface name");
+
+			data._filter = params[idx];
 		}
 		else
 		{

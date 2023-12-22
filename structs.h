@@ -120,6 +120,7 @@ struct data_t
 	bool _enum_class = true;
 	bool _seen_i64 = false;
 	std::string _path;
+	std::string _filter;
 	std::set<std::string> _files;
 	std::vector<std::string> _namespace;
 	std::map<std::string, std::string> _inherits;
