@@ -113,7 +113,8 @@ STDMETHODIMP C$Name$Listener::Invoke(DISPID dispIdMember, REFIID riid,
 	EXCEPINFO* pExcepInfo, UINT* puArgErr)
 {
 	switch (dispIdMember)
-	{$Switch$}
+	{
+$Switch$}
 
 	return S_OK;
 }
