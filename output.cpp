@@ -88,11 +88,11 @@ void output_if_namespace(const std::string& name, const data_t& data,
 	if (auto coclass_iter = std::ranges::find_if(data._coclass,
 		[&name](const auto& pair)
 		{
-			return pair.second == name;
+			return pair.first.second == name;
 		});
 		coclass_iter != data._coclass.cend())
 	{
-		ss << coclass_iter->first << "::";
+		ss << coclass_iter->first.first << "::";
 		return;
 	}
 

@@ -37,6 +37,7 @@ void func_t::clear()
 
 void attrs_t::clear()
 {
+	_default = false;
 	_defaultvalue.clear();
 	_helpstring.clear();
 	_hidden = false;

@@ -116,6 +116,17 @@ void output_header(data_t& data)
 			bool first = true;
 			bool seen_optional = false;
 			bool ignore_optionals = false;
+			std::string name = f._ret_com_type;
+
+			if (auto iter = std::ranges::find_if(data._coclass,
+				[&name](const auto& pair)
+				{
+					return pair.first.second == name;
+				});
+				iter != data._coclass.cend())
+			{
+				f._ret_com_type = f._ret_cpp_type = iter->second;
+			}
 
 			for (const auto& help : f._help)
 			{
@@ -141,6 +152,18 @@ void output_header(data_t& data)
 
 			for (auto& p : f._params)
 			{
+				name = p._com_type;
+
+				if (auto iter = std::ranges::find_if(data._coclass,
+					[&name](const auto& pair)
+					{
+						return pair.first.second == name;
+					});
+					iter != data._coclass.cend())
+				{
+					p._com_type = p._cpp_type = iter->second;
+				}
+
 				if ((f._kind == func_t::kind::propput ||
 					f._kind == func_t::kind::propputref) &&
 					(f._params.size() == 1 || p._name == "prop" ||
@@ -224,7 +247,12 @@ void output_header(data_t& data)
 					format_output(ss, ',', 2);
 				}
 
-				output_if_namespace(p._cpp_type, data, ss);
+				if (!(data._inherits.contains(p._cpp_type) &&
+					(p._cpp_stars > 1 || p._default_value == "0")))
+				{
+					output_if_namespace(p._cpp_type, data, ss);
+				}
+
 				output_enum_namespace(p._cpp_type, data, ss);
 
 				if ((p._cpp_type == "CURRENCY" || p._cpp_type == "VARIANT") &&

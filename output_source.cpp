@@ -42,6 +42,18 @@ void output_source(data_t& data)
 				continue;
 			}
 
+			std::string name = f._ret_com_type;
+
+			if (auto iter = std::ranges::find_if(data._coclass,
+				[&name](const auto& pair)
+				{
+					return pair.first.second == name;
+				});
+				iter != data._coclass.cend())
+			{
+				f._ret_com_type = f._ret_cpp_type = iter->second;
+			}
+
 			std::cout << '\n';
 
 			bool ret_is_enum = data._enum_map.contains(f._ret_cpp_type);
@@ -80,6 +92,18 @@ void output_source(data_t& data)
 
 			for (auto& p : f._params)
 			{
+				name = p._com_type;
+
+				if (auto iter = std::ranges::find_if(data._coclass,
+					[&name](const auto& pair)
+					{
+						return pair.first.second == name;
+					});
+					iter != data._coclass.cend())
+				{
+					p._com_type = p._cpp_type = iter->second;
+				}
+
 				if (!first)
 				{
 					ss << ", ";
@@ -100,7 +124,11 @@ void output_source(data_t& data)
 					p._name = convert_prop(p._cpp_type, data);
 				}
 
-				output_if_namespace(p._cpp_type, data, ss);
+				if (!(data._inherits.contains(p._cpp_type) &&
+					(p._cpp_stars > 1 || p._default_value == "0")))
+				{
+					output_if_namespace(p._cpp_type, data, ss);
+				}
 
 				if (data._enum_map.contains(p._cpp_type))
 					output_enum_namespace(p._cpp_type, data, ss);

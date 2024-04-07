@@ -252,7 +252,8 @@ void build_parser()
 		const auto& productions = data._productions_stack.top();
 		std::string name = results.dollar(2, data_t::_gsm, productions).str();
 
-		data._coclass.emplace(data._namespace.back(), std::move(name));
+		data._coclass[std::pair(data._namespace.back(), std::move(name))] = data._default_if;
+		data._default_if.clear();
 		data._curr_attrs.clear();
 	};
 	data_t::_actions[grules.push("coclass_name", "Name")] = [](data_t& data)
@@ -367,13 +368,16 @@ void build_parser()
 		"interface_list opt_attr_list 'interface' if_type ';'")] =
 		[](data_t& data)
 	{
-		if (data._curr_attrs._source)
+		if (data._curr_attrs._source || data._curr_attrs._default)
 		{
 			const auto& results = data._results_stack.top();
 			const auto& productions = data._productions_stack.top();
 			const std::string name = results.dollar(3, data_t::_gsm, productions).str();
 
-			data._events.emplace(data._namespace.back(), name);
+			if (data._curr_attrs._source)
+				data._events.emplace(data._namespace.back(), name);
+			else
+				data._default_if = name;
 		}
 
 		data._curr_attrs.clear();
@@ -382,13 +386,16 @@ void build_parser()
 		"interface_list opt_attr_list 'dispinterface' Name ';'")] =
 		[](data_t& data)
 	{
-		if (data._curr_attrs._source)
+		if (data._curr_attrs._source || data._curr_attrs._default)
 		{
 			const auto& results = data._results_stack.top();
 			const auto& productions = data._productions_stack.top();
 			const std::string name = results.dollar(3, data_t::_gsm, productions).str();
 
-			data._events.emplace(data._namespace.back(), name);
+			if (data._curr_attrs._source)
+				data._events.emplace(data._namespace.back(), name);
+			else
+				data._default_if = name;
 		}
 
 		data._curr_attrs.clear();
@@ -1171,8 +1178,12 @@ void build_parser()
 		"| 'custom' '(' Uuid ',' number_string ')' "
 		// String could be another data type
 		"| 'custom' '(' '{' Uuid '}' ',' String ')' "
-		"| 'default' "
 		"| 'defaultbind'");
+	data_t::_actions[grules.push("attr", "'default'")] =
+		[](data_t& data)
+	{
+		data._curr_attrs._default = true;
+	};
 	data_t::_actions[grules.push("attr", "'defaultvalue' '(' number_string ')'")] =
 		[](data_t& data)
 	{

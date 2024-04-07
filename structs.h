@@ -89,6 +89,7 @@ struct enum_data
 
 struct attrs_t
 {
+	bool _default = false;
 	std::string _defaultvalue;
 	std::string _helpstring;
 	bool _hidden = false;
@@ -144,7 +145,8 @@ struct data_t
 	std::map<std::string, enum_data> _enum_map;
 	std::map<std::string, std::tuple<std::size_t, std::string, std::string>> _typedefs;
 	std::vector<std::pair<interface_t, std::vector<func_t>>> _interfaces;
-	std::set<std::pair<std::string, std::string>> _coclass;
+	std::string _default_if;
+	std::map<std::pair<std::string, std::string>, std::string> _coclass;
 	std::set<std::pair<std::string, std::string>> _events;
 
 	void parse(const std::string& pathname);
