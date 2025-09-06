@@ -2,8 +2,10 @@
 
 #include "output.h"
 #include "output_source.h"
-#include <sstream>
 #include "structs.h"
+
+#include <iostream>
+#include <sstream>
 
 void output_source(data_t& data)
 {

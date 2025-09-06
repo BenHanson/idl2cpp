@@ -2,9 +2,11 @@
 
 #include "events_template.cpp"
 #include "output.h"
+#include "structs.h"
+
+#include <iostream>
 #include <regex>
 #include <sstream>
-#include "structs.h"
 
 void output_events_source(data_t& data)
 {

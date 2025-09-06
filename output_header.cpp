@@ -3,8 +3,10 @@
 #include "output.h"
 #include "output_header.h"
 #include "predefined.h"
-#include <sstream>
 #include "structs.h"
+
+#include <iostream>
+#include <sstream>
 
 void output_header(data_t& data)
 {

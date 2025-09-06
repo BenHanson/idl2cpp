@@ -3,6 +3,8 @@
 #include "output.h"
 #include "structs.h"
 
+#include <iostream>
+
 void output_events_header(const data_t& data)
 {
 	std::cout << "#pragma once\n\n" << idl2cpp_comment() <<

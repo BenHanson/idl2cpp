@@ -1,11 +1,13 @@
 #include "stdafx.h"
 
-#include <chrono>
-#include <format>
 #include "output.h"
 #include "predefined.h"
-#include <sstream>
 #include "structs.h"
+
+#include <chrono>
+#include <format>
+#include <iostream>
+#include <sstream>
 
 std::string idl2cpp_comment()
 {

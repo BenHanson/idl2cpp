@@ -1,6 +1,5 @@
 #include "stdafx.h"
 
-#include <filesystem>
 #include "output_enums.h"
 #include "output_events_header.h"
 #include "output_events_source.h"
@@ -8,8 +7,11 @@
 #include "output_header.h"
 #include "output_source.h"
 #include "parser.h"
-#include <span>
 #include "structs.h"
+
+#include <filesystem>
+#include <iostream>
+#include <span>
 
 [[noreturn]] static void throw_switch()
 {
