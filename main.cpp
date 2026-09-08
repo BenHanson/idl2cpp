@@ -23,9 +23,9 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 	std::pair<switches, std::string> ret;
 
 	if (params.empty())
-		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [/enums "
-			"| /events_h | /events_cpp | /fwd_decls | /h [/no_afx] | /cpp] "
-			"[/name <if name>]");
+		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [--enums "
+			"| --events_h | --events_cpp | --fwd_decls | --h [--no_afx] | --cpp] "
+			"[--name <interface name>]");
 
 	ret.first = switches::none;
 
@@ -33,53 +33,53 @@ std::pair<switches, std::string> params(std::span<const char*> params, data_t& d
 	{
 		const char* param = params[idx];
 
-		if (::strcmp(param, "/enums") == 0)
+		if (::strcmp(param, "--enums") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::enums;
 		}
-		else if (::strcmp(param, "/events_h") == 0)
+		else if (::strcmp(param, "--events_h") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::events_header;
 		}
-		else if (::strcmp(param, "/events_cpp") == 0)
+		else if (::strcmp(param, "--events_cpp") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::events_source;
 		}
-		else if (::strcmp(param, "/fwd_decls") == 0)
+		else if (::strcmp(param, "--fwd_decls") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::fwd_decls;
 		}
-		else if (::strcmp(param, "/h") == 0)
+		else if (::strcmp(param, "--h") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::header;
 		}
-		else if (::strcmp(param, "/cpp") == 0)
+		else if (::strcmp(param, "--cpp") == 0)
 		{
 			if (ret.first != switches::none)
 				throw_switch();
 
 			ret.first = switches::source;
 		}
-		else if (::strcmp(param, "/no_afx") == 0)
+		else if (::strcmp(param, "--no_afx") == 0)
 		{
 			data._afx_ext_class = false;
 		}
-		else if (::strcmp(param, "/name") == 0)
+		else if (::strcmp(param, "--name") == 0)
 		{
 			++idx;
 
