@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -O -std=c++20 -Wall -I ../lexertl14/include -I ../parsertl14/include
+CXXFLAGS = -O -std=c++20 -Wall -I ../lexertl17/include -I ../parsertl17/include
 
 LDFLAGS = -O
 
@@ -47,11 +47,6 @@ predefined.o: predefined.cpp
 structs.o: structs.cpp
 	$(CXX) $(CXXFLAGS) -o structs.o -c structs.cpp
 
-library:
-
-binary:
-
 clean:
 	- rm *.o
 	- rm idl2cpp
-
