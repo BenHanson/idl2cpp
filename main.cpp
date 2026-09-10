@@ -18,14 +18,19 @@
 	throw std::runtime_error("Switches are mutually exclusive");
 }
 
+void usage()
+{
+	throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [--enums "
+		"| --events_h | --events_cpp | --fwd_decls | --h [--no_afx] | --cpp] "
+		"[--name <interface name>]");
+}
+
 std::pair<switches, std::string> params(std::span<const char*> params, data_t& data)
 {
 	std::pair<switches, std::string> ret;
 
 	if (params.empty())
-		throw std::runtime_error("USAGE: idl2cpp <pathname.idl> [--enums "
-			"| --events_h | --events_cpp | --fwd_decls | --h [--no_afx] | --cpp] "
-			"[--name <interface name>]");
+		usage();
 
 	ret.first = switches::none;
 
@@ -122,6 +127,9 @@ int main(int argc, const char* argv[])
 {
 	try
 	{
+		if (argc < 2)
+			usage();
+
 		data_t data;
 		auto [flag, pathname] = params(std::span(argv + 1, argc - 1), data);
 
